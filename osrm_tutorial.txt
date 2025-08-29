@@ -1,0 +1,24 @@
+NOTE: MAKE SURE TO PUT THE DIRECTORY AT THE C DRIVE FOR THIS TUTORIAL TO WORK. Example: C:\LAKBAI
+Prerequisites before tutorial:
+-> Download albay.osm.pbf from LAKBAI repo(repo natin)
+-> Have Docker downloaded and setup
+
+OSRM Installation Process for Windows
+(Optional) Visit https://github.com/Project-OSRM/osrm-backend for premade code and documentation
+
+Step 1: Go or make a directory named LAKBAI at C drive
+	Example C:\LAKBAI
+
+Step 2: Move albay.osm.pbf to C:\LAKBAI directory
+
+Step 3: Paste this code to Windows Powershell: docker run -t -v ${PWD}:/data ghcr.io/project-osrm/osrm-backend osrm-extract -p /opt/car.lua /data/albay.osm.pbf
+
+Step 4: Paste this code next to Windows Powershell: docker run -t -v C:\LAKBAI:/data ghcr.io/project-osrm/osrm-backend osrm-partition /data/albay.osrm
+
+Step 5: Next, past another code again: docker run -t -v C:\LAKBAI:/data ghcr.io/project-osrm/osrm-backend osrm-customize /data/albay.osrm
+
+Step 6 (Final): Check server if it's up and running on localhost: docker run -t -i -p 5000:5000 -v "C:\LAKBAI:/data" ghcr.io/project-osrm/osrm-backend osrm-routed --algorithm mld /data/albay.osrm
+
+	-> Note: Make sure status is ok and no error are shown after doing Step 6. Contact me for errors
+	
+
