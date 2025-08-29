@@ -9,7 +9,8 @@ OSRM Installation Process for Windows
 Step 1: Go or make a directory named LAKBAI at C drive
 	Example C:\LAKBAI
 
-Step 2: Move albay.osm.pbf to C:\LAKBAI directory
+Step 2: Move albay.osm.pbf to C:\LAKBAI directory. MAKE SURE TO BE IN THE C:\LAKBAI DIRECTORY WHEN DOING THE FOLLOWING CODES. 
+	NOTE: just do: cd C:\LAKBAI 
 
 Step 3: Paste this code to Windows Powershell: docker run -t -v ${PWD}:/data ghcr.io/project-osrm/osrm-backend osrm-extract -p /opt/car.lua /data/albay.osm.pbf
 
