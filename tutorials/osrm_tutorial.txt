@@ -6,8 +6,8 @@ NOTE: -> MAKE SURE TO PUT THE DIRECTORY AT THE C DRIVE FOR THIS TUTORIAL TO WORK
       
 
 Prerequisites before tutorial:
--> Download albay.osm.pbf from LAKBAI repo(repo natin). Make sure it's in all the directories (folders: car, bicycle, and foot)
-	example: C:\LAKBAI\osrm-docker\car\albay.osm.pbf
+-> Download legazpi.osm.pbf from LAKBAI repo(repo natin). Make sure it's in all the directories (folders: car, bicycle, and foot)
+	example: C:\LAKBAI\osrm-docker\car\legazpi.osm.pbf
 -> Have Docker downloaded and setup
 
 
@@ -19,22 +19,22 @@ CAR PROFILE (INITIAL)
 Step 1: Go or make a directory named LAKBAI at C drive
 	Example C:\LAKBAI\osrm-docker\car
 
-Step 2: Move albay.osm.pbf to  C:\LAKBAI\osrm-docker\car directory. MAKE SURE TO BE IN THE C:\LAKBAI\osrm-docker\car DIRECTORY WHEN DOING THE FOLLOWING CODES. 
+Step 2: Move legazpi.osm.pbf to  C:\LAKBAI\osrm-docker\car directory. MAKE SURE TO BE IN THE C:\LAKBAI\osrm-docker\car DIRECTORY WHEN DOING THE FOLLOWING CODES. 
 	NOTE: just do: cd  C:\LAKBAI\osrm-docker\car
  
-Step 3: Paste this code to Windows Powershell: docker run -t -v "${PWD}:/data" ghcr.io/project-osrm/osrm-backend osrm-extract -p /opt/car.lua /data/albay.osm.pbf
+Step 3: Paste this code to Windows Powershell: docker run -t -v "${PWD}:/data" ghcr.io/project-osrm/osrm-backend osrm-extract -p /opt/car.lua /data/legazpi.osm.pbf
 
-Step 4: Paste this code next to Windows Powershell: docker run -t -v "${PWD}:/data" ghcr.io/project-osrm/osrm-backend osrm-partition /data/albay.osrm
+Step 4: Paste this code next to Windows Powershell: docker run -t -v "${PWD}:/data" ghcr.io/project-osrm/osrm-backend osrm-partition /data/legazpi.osrm
 
-Step 5: Next, past another code again: docker run -t -v  C:\LAKBAI\osrm-docker\car:/data ghcr.io/project-osrm/osrm-backend osrm-customize /data/albay.osrm
+Step 5: Next, past another code again: docker run -t -v  C:\LAKBAI\osrm-docker\car:/data ghcr.io/project-osrm/osrm-backend osrm-customize /data/legazpi.osrm
 
-Step 6: Check server if it's up and running on localhost: docker run -t -i -p 5000:5000 -v "${PWD}:/data" ghcr.io/project-osrm/osrm-backend osrm-routed --algorithm mld /data/albay.osrm
+Step 6: Check server if it's up and running on localhost: docker run -t -i -p 5000:5000 -v "${PWD}:/data" ghcr.io/project-osrm/osrm-backend osrm-routed --algorithm mld /data/legazpi.osrm
 
 	-> Note: Make sure code line ends with: "[info] running and waiting for requests"
 	-> DO NOT CLOSE THIS TERMINAL. CHECK UNTIL THE END
 	
 
-Step 7 (Final): Open a new terminal and past -> curl "http://127.0.0.1:5000/route/v1/driving/13.388860,52.517037;13.385983,52.496891?steps=true"
+Step 7 (Final): Open a new terminal and paste -> curl "http://127.0.0.1:5000/route/v1/driving/13.388860,52.517037;13.385983,52.496891?steps=true"
 
 	-> Note -> Make sure code status shows OK
 
@@ -48,22 +48,22 @@ BICYCLE PROFILE
 Step 1: Go or make a directory named LAKBAI at C drive
 	Example C:\LAKBAI\osrm-docker\bicycle
 
-Step 2: Move albay.osm.pbf to  C:\LAKBAI\osrm-docker\bicycle directory. MAKE SURE TO BE IN THE C:\LAKBAI\osrm-docker\bicycle DIRECTORY WHEN DOING THE FOLLOWING CODES. 
+Step 2: Move legazpi.osm.pbf to  C:\LAKBAI\osrm-docker\bicycle directory. MAKE SURE TO BE IN THE C:\LAKBAI\osrm-docker\bicycle DIRECTORY WHEN DOING THE FOLLOWING CODES. 
 	NOTE: just do: cd  C:\LAKBAI\osrm-docker\bicycle
  
-Step 3: Paste this code to Windows Powershell: docker run -t -v "${PWD}:/data" ghcr.io/project-osrm/osrm-backend osrm-extract -p /opt/bicycle.lua /data/albay.osm.pbf
+Step 3: Paste this code to Windows Powershell: docker run -t -v "${PWD}:/data" ghcr.io/project-osrm/osrm-backend osrm-extract -p /opt/bicycle.lua /data/legazpi.osm.pbf
 
-Step 4: Paste this code next to Windows Powershell: docker run -t -v "${PWD}:/data" ghcr.io/project-osrm/osrm-backend osrm-partition /data/albay.osrm
+Step 4: Paste this code next to Windows Powershell: docker run -t -v "${PWD}:/data" ghcr.io/project-osrm/osrm-backend osrm-partition /data/legazpi.osrm
 
-Step 5: Next, past another code again: docker run -t -v "${PWD}:/data" ghcr.io/project-osrm/osrm-backend osrm-customize /data/albay.osrm
+Step 5: Next, past another code again: docker run -t -v "${PWD}:/data" ghcr.io/project-osrm/osrm-backend osrm-customize /data/legazpi.osrm
 
-Step 6: Check server if it's up and running on localhost: docker run -t -i -p 5001:5000 -v "${PWD}:/data" ghcr.io/project-osrm/osrm-backend osrm-routed --algorithm mld /data/albay.osrm
+Step 6: Check server if it's up and running on localhost: docker run -t -i -p 5001:5000 -v "${PWD}:/data" ghcr.io/project-osrm/osrm-backend osrm-routed --algorithm mld /data/legazpi.osrm
 
 
 	-> Note: Make sure code line ends with: "[info] running and waiting for requests"
 	-> DO NOT CLOSE THIS TERMINAL. CHECK UNTIL THE END
 	
-Step 7 (Final): Open a new terminal and past -> curl "http://127.0.0.1:5001/route/v1/biking/13.388860,52.517037;13.385983,52.496891?steps=true"
+Step 7 (Final): Open a new terminal and paste -> curl "http://127.0.0.1:5001/route/v1/biking/13.388860,52.517037;13.385983,52.496891?steps=true"
 
 	-> Note -> Make sure code status shows OK
 
@@ -78,20 +78,20 @@ FOOT PROFILE
 Step 1: Go or make a directory named LAKBAI at C drive
 	Example C:\LAKBAI\osrm-docker\bicycle
 
-Step 2: Move albay.osm.pbf to  C:\LAKBAI\osrm-docker\foot directory. MAKE SURE TO BE IN THE C:\LAKBAI\osrm-docker\bicycle DIRECTORY WHEN DOING THE FOLLOWING CODES. 
+Step 2: Move legazpi.osm.pbf to  C:\LAKBAI\osrm-docker\foot directory. MAKE SURE TO BE IN THE C:\LAKBAI\osrm-docker\bicycle DIRECTORY WHEN DOING THE FOLLOWING CODES. 
 	NOTE: just do: cd  C:\LAKBAI\osrm-docker\foot
  
-Step 3: Paste this code to Windows Powershell: docker run -t -v "${PWD}:/data" ghcr.io/project-osrm/osrm-backend osrm-extract -p /opt/foot.lua /data/albay.osm.pbf
+Step 3: Paste this code to Windows Powershell: docker run -t -v "${PWD}:/data" ghcr.io/project-osrm/osrm-backend osrm-extract -p /opt/foot.lua /data/legazpi.osm.pbf
 
-Step 4: Paste this code next to Windows Powershell: docker run -t -v "${PWD}:/data" ghcr.io/project-osrm/osrm-backend osrm-partition /data/albay.osrm
+Step 4: Paste this code next to Windows Powershell: docker run -t -v "${PWD}:/data" ghcr.io/project-osrm/osrm-backend osrm-partition /data/legazpi.osrm
 
-Step 5: Next, past another code again: docker run -t -v "${PWD}:/data" ghcr.io/project-osrm/osrm-backend osrm-customize /data/albay.osrm
+Step 5: Next, past another code again: docker run -t -v "${PWD}:/data" ghcr.io/project-osrm/osrm-backend osrm-customize /data/legazpi.osrm
 
-Step 6: Check server if it's up and running on localhost: docker run -t -i -p 5002:5000 -v "${PWD}:/data" ghcr.io/project-osrm/osrm-backend osrm-routed --algorithm mld /data/albay.osrm
+Step 6: Check server if it's up and running on localhost: docker run -t -i -p 5002:5000 -v "${PWD}:/data" ghcr.io/project-osrm/osrm-backend osrm-routed --algorithm mld /data/legazpi.osrm
 
 	-> Note: Make sure code line ends with: "[info] running and waiting for requests"
 	-> DO NOT CLOSE THIS TERMINAL. CHECK UNTIL THE END
 	
-Step 7 (Final): Open a new terminal and past -> curl "http://127.0.0.1:5002/route/v1/walking/13.388860,52.517037;13.385983,52.496891?steps=true"
+Step 7 (Final): Open a new terminal and paste -> curl "http://127.0.0.1:5002/route/v1/walking/13.388860,52.517037;13.385983,52.496891?steps=true"
 
 	-> Note -> Make sure code status shows OK
