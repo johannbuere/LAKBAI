@@ -12,7 +12,7 @@ app.post("/route", async (req, res) => {
     const response = await fetch("http://localhost:8002/route", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(req.body)
+      body: JSON.stringify(req.body),
     });
     const data = await response.json();
     res.json(data);
