@@ -1,112 +1,120 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
-<head>
-  <meta charset="utf-8" />
-  <title>Valhalla + MapLibre Test</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="utf-8" />
+    <title>Valhalla + MapLibre Test</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <!-- MapLibre CSS -->
-  <link href="https://unpkg.com/maplibre-gl@3.6.1/dist/maplibre-gl.css" rel="stylesheet" />
-  <style>
-    body { margin:0; padding:0; }
-    #map { width:100%; height:100vh; }
-  </style>
-</head>
-<body>
-  <div id="map"></div>
+    <!-- MapLibre CSS -->
+    <link
+      href="https://unpkg.com/maplibre-gl@3.6.1/dist/maplibre-gl.css"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+      }
+      #map {
+        width: 100%;
+        height: 100vh;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
 
-  <!-- MapLibre JS -->
-  <script src="https://unpkg.com/maplibre-gl@3.6.1/dist/maplibre-gl.js"></script>
-  <!-- Polyline decoder (Valhalla uses Google-style polyline encoding) -->
-  <script src="https://unpkg.com/@mapbox/polyline"></script>
+    <!-- MapLibre JS -->
+    <script src="https://unpkg.com/maplibre-gl@3.6.1/dist/maplibre-gl.js"></script>
+    <!-- Polyline decoder (Valhalla uses Google-style polyline encoding) -->
+    <script src="https://unpkg.com/@mapbox/polyline"></script>
 
-  <script>
-    // 1. Init Map
-    const map = new maplibregl.Map({
-      container: "map",
-      style: "https://demotiles.maplibre.org/style.json", // free basemap
-      center: [123.7438, 13.1391], // Legazpi City
-      zoom: 11
-    });
-
-    // 2. Fetch route from Valhalla
-    async function getRoute() {
-      const response = await fetch("http://localhost:8002/route", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          locations: [
-            { lat: 13.1391, lon: 123.7438 }, // Start (Legazpi)
-            { lat: 13.2130, lon: 123.6605 }  // End (Quituinan Hills)
-          ],
-          costing: "auto",
-          directions_options: { units: "kilometers" }
-        })
+    <script>
+      // 1. Init Map
+      const map = new maplibregl.Map({
+        container: "map",
+        style: "https://demotiles.maplibre.org/style.json", // free basemap
+        center: [123.7438, 13.1391], // Legazpi City
+        zoom: 11,
       });
 
-      const data = await response.json();
-      console.log("Valhalla JSON:", data);
-
-      const shape = data.trip.legs[0].shape; // encoded polyline
-      const coords = polyline.decode(shape); // decode into [lat, lon]
-
-      // Convert [lat, lon] → [lon, lat] for GeoJSON
-      const geojson = {
-        type: "Feature",
-        geometry: {
-          type: "LineString",
-          coordinates: coords.map(c => [c[1], c[0]])
-        }
-      };
-
-      // 3. Add route to map
-      map.on("load", async () => {
+      // 2. Fetch route from Valhalla
+      async function getRoute() {
         const response = await fetch("http://localhost:8002/route", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             locations: [
-              { lat: 13.1391, lon: 123.7438 },
-              { lat: 13.2130, lon: 123.6605 }
+              { lat: 13.1391, lon: 123.7438 }, // Start (Legazpi)
+              { lat: 13.213, lon: 123.6605 }, // End (Quituinan Hills)
             ],
             costing: "auto",
-            directions_options: { units: "kilometers" }
-          })
+            directions_options: { units: "kilometers" },
+          }),
         });
 
         const data = await response.json();
         console.log("Valhalla JSON:", data);
 
-        const shape = data.trip.legs[0].shape;
-        const coords = polyline.decode(shape);
+        const shape = data.trip.legs[0].shape; // encoded polyline
+        const coords = polyline.decode(shape); // decode into [lat, lon]
 
+        // Convert [lat, lon] → [lon, lat] for GeoJSON
         const geojson = {
           type: "Feature",
           geometry: {
             type: "LineString",
-            coordinates: coords.map(c => [c[1], c[0]])
-          }
+            coordinates: coords.map((c) => [c[1], c[0]]),
+          },
         };
 
-        map.addSource("route", { type: "geojson", data: geojson });
-        map.addLayer({
-          id: "route",
-          type: "line",
-          source: "route",
-          layout: { "line-join": "round", "line-cap": "round" },
-          paint: { "line-color": "#ff0000", "line-width": 4 }
+        // 3. Add route to map
+        map.on("load", async () => {
+          const response = await fetch("http://localhost:8002/route", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              locations: [
+                { lat: 13.1391, lon: 123.7438 },
+                { lat: 13.213, lon: 123.6605 },
+              ],
+              costing: "auto",
+              directions_options: { units: "kilometers" },
+            }),
+          });
+
+          const data = await response.json();
+          console.log("Valhalla JSON:", data);
+
+          const shape = data.trip.legs[0].shape;
+          const coords = polyline.decode(shape);
+
+          const geojson = {
+            type: "Feature",
+            geometry: {
+              type: "LineString",
+              coordinates: coords.map((c) => [c[1], c[0]]),
+            },
+          };
+
+          map.addSource("route", { type: "geojson", data: geojson });
+          map.addLayer({
+            id: "route",
+            type: "line",
+            source: "route",
+            layout: { "line-join": "round", "line-cap": "round" },
+            paint: { "line-color": "#ff0000", "line-width": 4 },
+          });
+
+          const bounds = coords.reduce(
+            (b, c) => b.extend([c[1], c[0]]),
+            new maplibregl.LngLatBounds(coords[0], coords[0]),
+          );
+          map.fitBounds(bounds, { padding: 50 });
         });
+      }
 
-        const bounds = coords.reduce(
-          (b, c) => b.extend([c[1], c[0]]),
-          new maplibregl.LngLatBounds(coords[0], coords[0])
-        );
-        map.fitBounds(bounds, { padding: 50 });
-      });
-
-    }
-
-    getRoute();
-  </script>
-</body>
+      getRoute();
+    </script>
+  </body>
 </html>
