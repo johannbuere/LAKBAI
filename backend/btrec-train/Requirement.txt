@@ -1,0 +1,6 @@
+simpletransformers
+torch
+matplotlib
+nvidia-tensorrt
+Subseq-1.0
+
