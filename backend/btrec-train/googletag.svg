@@ -1,0 +1,25 @@
+<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+  <foreignObject width="100" height="100">
+    <div xmlns="http://www.w3.org/1999/xhtml">
+     
+    </div>
+    <!-- Google tag (gtag.js) -->
+    <!-- <script async src="https://www.googletagmanager.com/gtag/js?id=G-ED47HEYQ3M"></script> -->
+    <script src="https://www.googletagmanager.com/gtag/js?id=G-ED47HEYQ3M"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-ED47HEYQ3M');
+      
+      console.log("id=G-ED47HEYQ3M tagged")
+    </script>
+    <script src="https://www.googletagmanager.com/gtag/js?id=G-ED47HEYQ3M"></script>
+  </foreignObject>
+  <!-- <circle cx="65" cy="65" r="3" /> -->>
+  <!-- Simple rectangle -->
+  <!-- Rounded corner rectangle -->
+  <rect x="10" width="60" height="65" rx="15" />
+ 
+</svg>
+  
