@@ -55,21 +55,28 @@ The frontend will be available at [http://localhost:3000](http://localhost:3000)
 
 ### 3. Backend Setup
 
-**On Windows:**
+**🚀 Quick Start (Windows):**
+```powershell
+cd backend
+python -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload
+```
+
+**Alternative Methods:**
+
+**Windows Script:**
 ```bash
 cd backend
-# Run the startup script
 start.bat
 ```
 
-**On Linux/macOS:**
+**Linux/macOS Script:**
 ```bash
 cd backend
 chmod +x start.sh
 ./start.sh
 ```
 
-**Manual Setup:**
+**Full Manual Setup:**
 ```bash
 cd backend
 python -m venv venv
@@ -79,7 +86,7 @@ python -m venv venv
 # Linux/macOS: source venv/bin/activate
 
 pip install -r requirements.txt
-uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+python -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
 The API will be available at [http://localhost:8000](http://localhost:8000)
