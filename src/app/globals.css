@@ -1,1 +1,33 @@
 @import "tailwindcss";
+@import "../styles/theme.css";
+
+:root {
+  --font-sans: var(--font-geist-sans, Inter, ui-sans-serif, system-ui);
+}
+
+body {
+  font-family: var(--font-sans);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  padding: 0.625rem 0.9rem;
+  font-weight: 600;
+  transition: all 160ms ease;
+}
+
+.btn-accent {
+  background: var(--accent);
+  color: white;
+}
+
+.btn-accent:hover {
+  background: var(--accent-600);
+}
+
+.section-title {
+  font-weight: 700;
+}

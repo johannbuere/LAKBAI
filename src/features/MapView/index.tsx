@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useEffect, useRef } from 'react';
-import { POI } from '@/lib/api';
+import type { POI } from '@/lib/api';
+import { renderMarkerHtml } from '@/components/Marker';
 
 interface MapViewProps {
   center?: [number, number];
@@ -9,6 +10,7 @@ interface MapViewProps {
   pois?: POI[];
   userLocation?: [number, number];
   height?: string;
+  onMarkerClick?: (poi: POI) => void;
 }
 
 const MapView: React.FC<MapViewProps> = ({
@@ -17,13 +19,13 @@ const MapView: React.FC<MapViewProps> = ({
   pois = [],
   userLocation,
   height = '400px',
+  onMarkerClick,
 }) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && mapRef.current && !mapInstanceRef.current) {
-      // Load Leaflet CSS
       if (!document.querySelector('link[href*="leaflet"]')) {
         const link = document.createElement('link');
         link.rel = 'stylesheet';
@@ -31,13 +33,11 @@ const MapView: React.FC<MapViewProps> = ({
         document.head.appendChild(link);
       }
 
-      // Load Leaflet JS
       const script = document.createElement('script');
       script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
       script.onload = () => {
         const L = (window as any).L;
-        
-        // Initialize map with proper container size
+
         const map = L.map(mapRef.current!, {
           center: center,
           zoom: zoom,
@@ -46,13 +46,11 @@ const MapView: React.FC<MapViewProps> = ({
         });
         mapInstanceRef.current = map;
 
-        // Add OpenStreetMap tiles
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
           attribution: '© OpenStreetMap contributors',
           maxZoom: 19,
         }).addTo(map);
 
-        // Add user location marker (blue dot)
         if (userLocation) {
           L.circleMarker(userLocation, {
             color: '#3B82F6',
@@ -62,20 +60,19 @@ const MapView: React.FC<MapViewProps> = ({
           }).bindPopup('📍 Your Location').addTo(map);
         }
 
-        // Add POI markers (red pins)
         pois.forEach((poi) => {
-          L.marker([poi.lat, poi.lon])
-            .bindPopup(`
-              <div>
-                <h3><strong>${poi.name}</strong></h3>
-                ${poi.category ? `<p><em>${poi.category}</em></p>` : ''}
-                ${poi.description ? `<p>${poi.description}</p>` : ''}
-              </div>
-            `)
-            .addTo(map);
+          const icon = L.divIcon({
+            className: '',
+            html: renderMarkerHtml({ id: poi.id, coordinates: [poi.lat, poi.lon], category: poi.category }),
+            iconSize: [44, 44],
+            iconAnchor: [22, 22],
+          });
+          const marker = L.marker([poi.lat, poi.lon], { icon });
+          marker.addTo(map);
+          marker.on('click', () => onMarkerClick && onMarkerClick(poi));
+          marker.bindTooltip(poi.name, { permanent: false, direction: 'top' });
         });
 
-        // Fix map size after container is ready
         setTimeout(() => {
           map.invalidateSize();
         }, 100);
@@ -91,20 +88,17 @@ const MapView: React.FC<MapViewProps> = ({
     };
   }, []);
 
-  // Update map when data changes
   useEffect(() => {
     if (mapInstanceRef.current) {
       const L = (window as any).L;
       const map = mapInstanceRef.current;
 
-      // Clear existing markers
       map.eachLayer((layer: any) => {
         if (layer instanceof L.Marker || layer instanceof L.CircleMarker) {
           map.removeLayer(layer);
         }
       });
 
-      // Re-add markers
       if (userLocation) {
         L.circleMarker(userLocation, {
           color: '#3B82F6',
@@ -115,34 +109,27 @@ const MapView: React.FC<MapViewProps> = ({
       }
 
       pois.forEach((poi) => {
-        L.marker([poi.lat, poi.lon])
-          .bindPopup(`
-            <div>
-              <h3><strong>${poi.name}</strong></h3>
-              ${poi.category ? `<p><em>${poi.category}</em></p>` : ''}
-              ${poi.description ? `<p>${poi.description}</p>` : ''}
-            </div>
-          `)
-          .addTo(map);
+        const icon = L.divIcon({
+          className: '',
+          html: renderMarkerHtml({ id: poi.id, coordinates: [poi.lat, poi.lon], category: poi.category }),
+          iconSize: [44, 44],
+          iconAnchor: [22, 22],
+        });
+        const marker = L.marker([poi.lat, poi.lon], { icon });
+        marker.addTo(map);
+        marker.on('click', () => onMarkerClick && onMarkerClick(poi));
+        marker.bindTooltip(poi.name, { permanent: false, direction: 'top' });
       });
     }
   }, [pois, userLocation]);
 
   return (
-    <div 
-      className="w-full rounded-lg overflow-hidden shadow-md border"
-      style={{ height }}
-    >
-      <div 
-        ref={mapRef} 
-        style={{ 
-          width: '100%', 
-          height: '100%',
-          minHeight: height,
-        }} 
-      />
+    <div className="w-full rounded-lg overflow-hidden border" style={{ height }}>
+      <div ref={mapRef} style={{ width: '100%', height: '100%', minHeight: height }} />
     </div>
   );
 };
 
 export default MapView;
+
+

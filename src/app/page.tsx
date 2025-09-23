@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/Navbar';
-import MapView from '@/components/MapView';
+import MapView from '@/features/MapView';
 import { apiService, POI } from '@/lib/api';
 
 export default function Home() {
