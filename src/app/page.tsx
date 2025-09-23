@@ -97,6 +97,12 @@ export default function Home() {
             >
               {loading ? 'Getting Recommendations...' : 'Get AI Recommendations'}
             </button>
+            <a
+              href="/plan"
+              className="bg-green-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors text-center"
+            >
+              🗺️ Plan My Trip
+            </a>
             <button
               onClick={getUserLocation}
               className="bg-secondary-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-secondary-700 transition-colors"
@@ -118,6 +124,7 @@ export default function Home() {
                 zoom={13}
                 pois={pois}
                 userLocation={userLocation}
+                height="400px"
               />
             </div>
           </div>
