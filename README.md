@@ -222,20 +222,16 @@ docker run -t -i -p 5000:5000 -v $(pwd)/car:/data osrm/osrm-backend osrm-routed 
 
 For questions, issues, or contributions:
 - Create an issue on GitHub
-- Contact: [your-email@example.com]
-- Documentation: [Link to docs when available]
+- Contact: johannbuere@gmail.com
+=
 
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## 🙏 Acknowledgments
 
 - OpenStreetMap contributors for map data
 - OSRM project for routing capabilities
-- Legazpi City Tourism Office for local insights
 - Next.js and FastAPI communities
 
 ---
 
-**Built with ❤️ for Legazpi City Tourism**
+
