@@ -1,152 +1,146 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import dynamic from 'next/dynamic';
+import React, { useEffect, useRef } from 'react';
 import { POI } from '@/lib/api';
-
-// Dynamically import map components to avoid SSR issues
-const MapContainer = dynamic(
-  () => import('react-leaflet').then((mod) => mod.MapContainer),
-  { ssr: false }
-);
-const TileLayer = dynamic(
-  () => import('react-leaflet').then((mod) => mod.TileLayer),
-  { ssr: false }
-);
-const Marker = dynamic(
-  () => import('react-leaflet').then((mod) => mod.Marker),
-  { ssr: false }
-);
-const Popup = dynamic(
-  () => import('react-leaflet').then((mod) => mod.Popup),
-  { ssr: false }
-);
-const Polyline = dynamic(
-  () => import('react-leaflet').then((mod) => mod.Polyline),
-  { ssr: false }
-);
 
 interface MapViewProps {
   center?: [number, number];
   zoom?: number;
   pois?: POI[];
-  route?: number[][];
   userLocation?: [number, number];
-  onLocationSelect?: (lat: number, lon: number) => void;
+  height?: string;
 }
 
 const MapView: React.FC<MapViewProps> = ({
-  center = [13.142, 123.735], // Default to Legazpi City center
+  center = [13.142, 123.735],
   zoom = 13,
   pois = [],
-  route,
   userLocation,
-  onLocationSelect,
+  height = '400px',
 }) => {
-  const [isClient, setIsClient] = useState(false);
-  const [L, setL] = useState<any>(null);
+  const mapRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<any>(null);
 
   useEffect(() => {
-    setIsClient(true);
-    // Dynamically import Leaflet
-    import('leaflet').then((leaflet) => {
-      setL(leaflet.default);
-      // Fix for default markers in react-leaflet
-      delete (leaflet.default.Icon.Default.prototype as any)._getIconUrl;
-      leaflet.default.Icon.Default.mergeOptions({
-        iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-        iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-      });
-    });
+    if (typeof window !== 'undefined' && mapRef.current && !mapInstanceRef.current) {
+      // Load Leaflet CSS
+      if (!document.querySelector('link[href*="leaflet"]')) {
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+        document.head.appendChild(link);
+      }
+
+      // Load Leaflet JS
+      const script = document.createElement('script');
+      script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+      script.onload = () => {
+        const L = (window as any).L;
+        
+        // Initialize map with proper container size
+        const map = L.map(mapRef.current!, {
+          center: center,
+          zoom: zoom,
+          scrollWheelZoom: true,
+          zoomControl: true,
+        });
+        mapInstanceRef.current = map;
+
+        // Add OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '© OpenStreetMap contributors',
+          maxZoom: 19,
+        }).addTo(map);
+
+        // Add user location marker (blue dot)
+        if (userLocation) {
+          L.circleMarker(userLocation, {
+            color: '#3B82F6',
+            fillColor: '#3B82F6',
+            fillOpacity: 0.8,
+            radius: 8,
+          }).bindPopup('📍 Your Location').addTo(map);
+        }
+
+        // Add POI markers (red pins)
+        pois.forEach((poi) => {
+          L.marker([poi.lat, poi.lon])
+            .bindPopup(`
+              <div>
+                <h3><strong>${poi.name}</strong></h3>
+                ${poi.category ? `<p><em>${poi.category}</em></p>` : ''}
+                ${poi.description ? `<p>${poi.description}</p>` : ''}
+              </div>
+            `)
+            .addTo(map);
+        });
+
+        // Fix map size after container is ready
+        setTimeout(() => {
+          map.invalidateSize();
+        }, 100);
+      };
+      document.head.appendChild(script);
+    }
+
+    return () => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
+    };
   }, []);
 
-  if (!isClient || !L) {
-    return (
-      <div className="w-full h-96 bg-gray-200 flex items-center justify-center rounded-lg">
-        <div className="text-gray-500">Loading map...</div>
-      </div>
-    );
-  }
+  // Update map when data changes
+  useEffect(() => {
+    if (mapInstanceRef.current) {
+      const L = (window as any).L;
+      const map = mapInstanceRef.current;
 
-  // Custom icon for POIs
-  const poiIcon = new L.Icon({
-    iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-    iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34],
-    shadowSize: [41, 41],
-  });
+      // Clear existing markers
+      map.eachLayer((layer: any) => {
+        if (layer instanceof L.Marker || layer instanceof L.CircleMarker) {
+          map.removeLayer(layer);
+        }
+      });
 
-  // Custom icon for user location
-  const userIcon = new L.Icon({
-    iconUrl: 'data:image/svg+xml;base64,' + btoa(`
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#3B82F6">
-        <circle cx="12" cy="12" r="8" stroke="#1E40AF" stroke-width="2"/>
-        <circle cx="12" cy="12" r="3" fill="#FFFFFF"/>
-      </svg>
-    `),
-    iconSize: [24, 24],
-    iconAnchor: [12, 12],
-    popupAnchor: [0, -12],
-  });
+      // Re-add markers
+      if (userLocation) {
+        L.circleMarker(userLocation, {
+          color: '#3B82F6',
+          fillColor: '#3B82F6',
+          fillOpacity: 0.8,
+          radius: 8,
+        }).bindPopup('📍 Your Location').addTo(map);
+      }
+
+      pois.forEach((poi) => {
+        L.marker([poi.lat, poi.lon])
+          .bindPopup(`
+            <div>
+              <h3><strong>${poi.name}</strong></h3>
+              ${poi.category ? `<p><em>${poi.category}</em></p>` : ''}
+              ${poi.description ? `<p>${poi.description}</p>` : ''}
+            </div>
+          `)
+          .addTo(map);
+      });
+    }
+  }, [pois, userLocation]);
 
   return (
-    <div className="w-full h-96 rounded-lg overflow-hidden shadow-lg">
-      <MapContainer
-        center={center}
-        zoom={zoom}
-        style={{ height: '100%', width: '100%' }}
-      >
-        <TileLayer
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        />
-        
-        {/* User location marker */}
-        {userLocation && (
-          <Marker position={userLocation} icon={userIcon}>
-            <Popup>Your Location</Popup>
-          </Marker>
-        )}
-        
-        {/* POI markers */}
-        {pois.map((poi) => (
-          <Marker
-            key={poi.id}
-            position={[poi.lat, poi.lon]}
-            icon={poiIcon}
-          >
-            <Popup>
-              <div className="text-center">
-                <h3 className="font-semibold text-lg">{poi.name}</h3>
-                {poi.description && (
-                  <p className="text-sm text-gray-600 mt-1">{poi.description}</p>
-                )}
-                {poi.category && (
-                  <span className="inline-block bg-primary-100 text-primary-700 px-2 py-1 rounded-full text-xs mt-2">
-                    {poi.category}
-                  </span>
-                )}
-              </div>
-            </Popup>
-          </Marker>
-        ))}
-        
-        {/* Route polyline */}
-        {route && route.length > 0 && (
-          <Polyline
-            positions={route.map(coord => [coord[1], coord[0]] as [number, number])} // Note: Leaflet uses [lat, lon] but GeoJSON uses [lon, lat]
-            pathOptions={{
-              color: '#EF4444',
-              weight: 4,
-              opacity: 0.8,
-            }}
-          />
-        )}
-      </MapContainer>
+    <div 
+      className="w-full rounded-lg overflow-hidden shadow-md border"
+      style={{ height }}
+    >
+      <div 
+        ref={mapRef} 
+        style={{ 
+          width: '100%', 
+          height: '100%',
+          minHeight: height,
+        }} 
+      />
     </div>
   );
 };
