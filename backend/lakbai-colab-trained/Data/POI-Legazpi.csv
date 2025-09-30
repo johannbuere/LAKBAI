@@ -1,0 +1,149 @@
+poiID;poiName;lat;long;theme
+1;Albay Park and Wild Life;13.15747;123.73045;Zoo
+2;Peñaranda Park;13.13917;123.73458;Park
+3;Your Brother House Tribal Village;13.16903;123.73378;Hotel
+4;Your Brother Mayon ATV Tours;13.17075;123.73373;ATV
+5;Puro Boulevard;13.13511;123.76726;Park
+6;Padang Memorial Cross;13.20712;123.75393;Historical_Landmark
+7;Giant Statue of Nuestra Señora de Salvacion;13.17036;123.73921;Tourist_Attraction
+8;Ligñon Hill;13.16143;123.72942;Park
+9;MASON’S Obelisk;13.13089;123.76851;Park
+10;Risen Christ Statue Banquerohan;13.05311;123.76112;Religious
+11;St. Gregory the Great Cathedral;13.1387;123.73323;Religious
+12;St. Raphael the Archangel Parish;13.14904;123.75356;Religious
+13;St. Padre Pio Parish and Diocesan Shrine;13.16618;123.75081;Religious
+14;Mayon Black Lava Zipline Adventure;13.20269;123.71309;Adventure
+15;1st Colonial | SM City Legazpi;13.14449;123.74439;Food
+16;Hotel Areca;13.13904;123.73236;Hotel
+17;Lotus Blu Hotel Legazpi;13.14617;123.74578;Hotel
+18;Hotel Sentro Legazpi;13.14641;123.75086;Hotel
+19;Ninong's Hotel;13.13958;123.73622;Hotel
+20;Hotel Inigo;13.14121;123.74771;Hotel
+21;The Oriental Legazpi;13.13465;123.73873;Hotel
+22;Chilo Bar;13.15594;123.74288;Bar
+23;Marison Hotel;13.15587;123.74209;Hotel
+24;Café Margaritas;13.17114;123.75165;Restaurant
+25;LeSans Cafe;13.1559;123.74293;Cafe
+26;Kabana Cafe;13.19198;123.75435;Cafe
+27;Cesar's;13.14527;123.78463;Restaurant
+28;Primeroasting Cafe & Kitchen;13.14568;123.73858;Restaurant
+29;Lola Feling Restaurant Legazpi;13.13937;123.74258;Restaurant
+30;Little Light Café;13.14674;123.74561;Cafe
+31;Kape sa Harong;13.13955;123.73127;Cafe
+32;KIN Coffee;13.13878;123.73714;Cafe
+33;Kapihan;13.15303;123.74686;Cafe
+34;Bec;13.14399;123.74005;Cafe
+35;Tambayan Cafe Lgp;13.12921;123.76611;Cafe
+36;Legazpi Four Seasons Restaurant - Main Branch;13.14481;123.74997;Restaurant
+37;Miña's Mayon View Resort;13.18915;123.74355;Resort
+38;Layag Restaurant And Grill;13.20157;123.75453;Restaurant
+39;FoodPals;13.19539;123.75455;Restaurant
+40;Kabana Cafe;13.19502;123.75442;Cafe
+41;SEVENTY-SIX Farm;13.19779;123.74825;Park
+42;Black Lava Trail & Helipad;13.20519;123.71057;ATV
+43;BUKO Trail - Mayon Volcano;13.21156;123.72645;Mountain_Biking
+44;Mt. Mayon View Point;13.12872;123.77329;Tourist_Attraction
+45;Lamba Point View;13.12174;123.7757;Hill
+46;Legazpi Boulevard;13.13572;123.76355;Park
+47;Zoe's Kitchen;13.13685;123.76198;Restaurant
+48;Ibalong Park / Legazpi City People's Park;13.13429;123.76556;Park
+49;Rockport Café;13.1345;123.76453;Cafe
+50;Mjm By The Bay Grill & Restaurant (Branch 1);13.13459;123.76422;Restaurant
+51;Boulevard Blends;13.13465;123.76401;Cafe
+52;C Front;13.13479;123.76374;Restaurant
+53;4D' Road Resto Bar & Cafe;13.13489;123.76355;Bar
+54;Lugaw Republic Legazpi Boulevard;13.13334;123.76728;Restaurant
+55;Handyong Monument (Ibalong Epic Hero);13.13042;123.76903;Historical_Landmark
+56;I LOVE PURO Marker;13.12863;123.77036;Tourist_Attraction
+57;Bantong Monument (Ibalong Epic Hero);13.1277;123.77253;Tourist_Attraction
+58;Arthur Holiday Inn;13.1356;123.76246;Hotel
+59;OGMA Suites Legazpi;13.13704;123.76074;Hotel
+60;Pavi's Place & Restobar;13.13731;123.76117;Restaurant
+61;Legazpi Macabalo Esplanade;13.13869;123.76073;Park
+62;Legazpi City Skate Park;13.14072;123.76061;Park
+63;JCI Legazpi Baltog Monument (Ibalong Epic);13.14084;123.76039;Historical_Landmark
+64;Sawangan Park;13.14194;123.76068;Park
+65;Sleeping Lion / Kapuntukan Hill;13.14255;123.7595;Hill
+66;Kapuntukan Resto Bar and Grille;13.14411;123.76155;Bar
+67;Baywalk Food Garden;13.14439;123.76099;Park
+68;Embarcadero de Legazpi;13.14343;123.75846;Tourist_Attraction
+69;St. Padre Pio Chapel Embarcadero de Legazpi;13.14366;123.75783;Church
+70;Ellis Ecotel Legazpi City;13.14327;123.75838;Hotel
+71;Resto Bar Bikers Burgers&Chesese;13.14378;123.75727;Restaurant
+72;Hometown Bike Shop;13.14409;123.75693;Sports
+73;Macam's Restobar;13.14226;123.75516;Bar
+74;Ayala Malls Legazpi;13.1468;123.75205;Mall
+75;La Kwatza Hotel;13.13952;123.74372;Hotel
+76;Pacific Mall;13.14537;123.74971;Mall
+77;1st Colonial Grill | Pacific Mall;13.14577;123.75006;Restaurant
+78;Hotel lucca;13.14318;123.75103;Hotel
+79;Ruffian’s Tavern Bar & Lounge;13.14536;123.75302;Bar
+80;St. Jude Thaddeus Filipino Chinese Personal Parish and Diocesan Shrine;13.14559;123.75374;Church
+81;SM City Legazpi;13.14433;123.74383;Mall
+82;Yashano Mall Legazpi;13.14669;123.74612;Mall
+83;Cali Inn;13.15137;123.74411;Hotel
+84;La Piazza Hotel and Convention Center;13.15249;123.74281;Hotel
+85;Coffee Spot Legazpi;13.15165;123.74292;Cafe
+86;Assemblr Cafe;13.15431;123.74296;Cafe
+87;Quento;13.1549;123.74321;Bar
+88;Bee’s Coffee House;13.15605;123.7433;Cafe
+89;Dampa Express-Legazpi;13.15529;123.74321;Restaurant
+90;Hap Chan - Legazpi;13.15227;123.74291;Restaurant
+91;La Roca Veranda Suites and Restaurant;13.15609;123.74671;Hotel
+92;Our Mother of Perpetual Help Shrine;13.15706;123.74291;Church
+93;Lazy Baker Cupcakerie;13.15583;123.73966;Bakery
+94;Aroy Mack Asian Cafe;13.15607;123.73951;Restaurant
+95;Lola's Bistro;13.15605;123.73845;Restaurant
+96;Paquito's Tapsilogan;13.15584;123.73731;Restaurant
+97;Salbaheng Siram - Lechon Belly House;13.15591;123.73643;Restaurant
+98;Cruzada Chapel;13.15617;123.73547;Church
+99;Tapsi na Bradd;13.15589;123.73943;Restaurant
+100;KIM BUN Hotpot and Grill;13.15587;123.74273;Restaurant
+101;Venice' Taste Corner;13.15608;123.73617;Restaurant
+102;Ninong's Bibingka;13.15609;123.73513;Bakery
+103;FOODFAM EATERY;13.15607;123.73478;Restaurant
+104;Bambinos Pizza House;13.15627;123.73482;Restaurant
+105;Flookes Billiard Hall;13.15592;123.7343;Sports
+106;Chef Lee;13.15514;123.73432;Restaurant
+107;Carmela's Wellness Spa;13.15439;123.73452;Spa
+108;La Edley;13.15486;123.73217;Resort
+109;Alicia Hotel;13.15267;123.73439;Hotel
+110;Anchorage Apartelle;13.15243;123.73413;Hotel
+111;RedDoorz @ Golite Washington;13.15228;123.73439;Hotel
+112;Thirdy's Tourist Inn;13.15145;123.7342;Hotel
+113;Yuris Bar and Grill;13.15162;123.73379;Bar
+114;The Pepperland Hotel;13.15163;123.73236;Hotel
+115;NEUHAUS INN;13.15085;123.72658;Hotel
+116;Masbate's Native Lechon Eatery & Meat shop;13.15229;123.72514;Restaurant
+117;EMONG Malunggay Pandesal;13.15262;123.72503;Bakery
+118;Bar-Rax 9 Resto & Events;13.15314;123.72471;Restaurant
+119;De Mansion Events Place;13.17668;123.75104;Restaurant
+120;Secret Shop Rawis;13.1749;123.75249;Bar
+121;Carlo's Bed & Breakfast Hometel;13.17468;123.75175;Hotel
+122;Rawis Pension;13.17579;123.75229;Hotel
+123;Gallera de Legazpi;13.17519;123.75222;Sports
+124;KitchenDay;13.16991;123.75302;Restaurant
+125;Caffeine Society;13.17316;123.75197;Cafe
+126;Andamar Citihomes;13.16075;123.74946;Resort
+127;T & R Sizzling Silog;13.17274;123.75211;Restaurant
+128;Eight (8) Waves Disco House;13.16072;123.74769;Bar
+129;Brewed Espressions Coffee Shop;13.17129;123.75159;Cafe
+130;Kalayaan Park;13.15419;123.74711;Park
+131;Cafe Margaritas;13.17104;123.75163;Restaurant
+132;PapaTea at Silog;13.17061;123.75115;Restaurant
+133;PhinHeads Coffee;13.15493;123.74791;Cafe
+134;Sizzlog Tapsilogan;13.17101;123.75028;Restaurant
+135;RedDoorz near Mariners Legazpi;13.17272;123.74693;Hotel
+136;Balagon Ihaw-Ihaw House;13.15381;123.74755;Restaurant
+137;Martin's Pizza;13.15359;123.74666;Restaurant
+138;Arang Resto Bar;13.15346;123.74663;Restaurant
+139;Mr. D's;13.15321;123.74667;Restaurant
+140;Master's Sizzlers;13.15121;123.74712;Restaurant
+141;Pritting Manok;13.14934;123.74728;Restaurant
+142;Primos Pares Legazpi;13.14942;123.7474;Restaurant
+143;Masbate Mang Ching Inasal House;13.14876;123.74763;Restaurant
+144;LEGAZPI GARDEN HOTEL;13.14791;123.74787;Hotel
+145;Trip Inn Legazpi City near Airport;13.14686;123.74872;Hotel
+146;ParmView Inn;13.13789;123.7412;Hotel
+147;Small Talk Café;13.13845;123.73707;Cafe
+148;Emerald Boutique Hotel;13.13732;123.73534;Hotel
