@@ -1,0 +1,5 @@
+# Ignore large AI model output directory
+backend/output_Legazpi_e1_bert/
+
+# Ignore OSRM Docker data files
+backend/osrm-docker/

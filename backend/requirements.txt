@@ -1,0 +1,16 @@
+# Core data science packages
+pandas>=1.5.0
+numpy>=1.21.0
+
+# Machine learning and deep learning
+torch>=1.13.0
+transformers>=4.20.0
+simpletransformers>=0.63.0
+scikit-learn>=1.1.0
+scipy>=1.9.0
+accelerate>=0.20.0
+
+# Additional packages that might be needed
+matplotlib>=3.5.0
+seaborn>=0.11.0
+tqdm>=4.64.0
