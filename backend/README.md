@@ -10,35 +10,7 @@ The system uses transformer models (BERT, RoBERTa, ALBERT, etc.) to predict tour
 - Geographic information
 - Time constraints
 
-## Environment Setup
-
-### Prerequisites
-- Python 3.8 or higher
-- Windows 10/11 (PowerShell)
-
-### Quick Setup
-
-1. **Clone or download this project** to your local machine
-
-2. **Activate the environment** using the provided script:
-   ```bash
-   # Double-click activate_env.bat or run in PowerShell:
-   .\activate_env.bat
-   ```
-
-3. **Alternative manual setup:**
-   ```bash
-   # Navigate to project directory
-   cd path\to\lakbai-colab
-
-   # Activate virtual environment
-   .\.venv\Scripts\Activate.ps1
-
-   # Install dependencies (if not already installed)
-   pip install -r requirements.txt
-   ```
-
-### Environment Details
+## Environment Details
 
 The project uses a Python virtual environment with the following key packages:
 - **pandas** - Data manipulation and analysis
@@ -116,27 +88,6 @@ lakbai-colab/
 3. **Memory Issues**: Reduce the number of epochs or use a smaller model
 4. **Data Issues**: Ensure data files are in the correct `Data/` directory
 
-### Environment Issues
-
-If you encounter environment issues:
-```bash
-# Deactivate current environment
-deactivate
-
-# Recreate environment
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-```
-
-## Development
-
-To modify or extend the project:
-
-1. Activate the environment
-2. Make your changes
-3. Test with a small dataset first
-4. Update requirements.txt if you add new dependencies
 
 ## License
 
@@ -145,6 +96,4 @@ This project is for educational and research purposes.
 ## Support
 
 For issues or questions, please check:
-1. This README file
-2. The configuration in `config.py`
-3. The data format in the `Data/` directory
+1. The data format in the `Data/` directory
