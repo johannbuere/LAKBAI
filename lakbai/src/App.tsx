@@ -21,20 +21,39 @@ interface Recommendation {
   reason: string
 }
 
+interface Stats {
+  total_pois: number
+  total_users: number
+  total_visits: number
+  cache_size: number
+}
+
 function App() {
   const [pois, setPois] = useState<POI[]>([])
   const [currentRoute, setCurrentRoute] = useState<number[]>([])
   const [recommendations, setRecommendations] = useState<Recommendation[]>([])
   const [loading, setLoading] = useState(false)
   const [themes, setThemes] = useState<string[]>([])
+  const [themeCounts, setThemeCounts] = useState<Record<string, number>>({})
   const [selectedTheme, setSelectedTheme] = useState<string>('All')
   const [error, setError] = useState<string>('')
+  const [stats, setStats] = useState<Stats | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string>('')
 
   // Fetch all POIs on component mount
   useEffect(() => {
     fetchPOIs()
     fetchThemes()
+    fetchStats()
   }, [])
+
+  // Auto-dismiss success messages
+  useEffect(() => {
+    if (successMessage) {
+      const timer = setTimeout(() => setSuccessMessage(''), 3000)
+      return () => clearTimeout(timer)
+    }
+  }, [successMessage])
 
   // Fetch all POIs
   const fetchPOIs = async () => {
@@ -54,8 +73,20 @@ function App() {
       const response = await fetch(`${API_BASE}/themes`)
       const data = await response.json()
       setThemes(['All', ...(data.themes || [])])
+      setThemeCounts(data.counts || {})
     } catch (err) {
       console.error('Failed to fetch themes:', err)
+    }
+  }
+
+  // Fetch stats
+  const fetchStats = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/stats`)
+      const data = await response.json()
+      setStats(data)
+    } catch (err) {
+      console.error('Failed to fetch stats:', err)
     }
   }
 
@@ -94,8 +125,13 @@ function App() {
   // Add POI to route
   const addToRoute = (poiId: number) => {
     if (!currentRoute.includes(poiId)) {
+      const poi = getPOIById(poiId)
       setCurrentRoute([...currentRoute, poiId])
       setRecommendations([]) // Clear recommendations when route changes
+      if (poi) {
+        setSuccessMessage(`Added "${poi.fullName || poi.name}" to your route`)
+        setError('') // Clear any errors
+      }
     }
   }
 
@@ -124,10 +160,45 @@ function App() {
   return (
     <div className="app-container">
       <header className="app-header">
-        <h1>🌟 LAKBAI Tourism Planner</h1>
-        <p>AI-Powered Route Recommendations for Legazpi City</p>
+        <div className="header-content">
+          <h1>🌟 LAKBAI Tourism Planner</h1>
+          <p className="header-subtitle">
+            AI-Powered Route Recommendations for Legazpi City
+            <span className="badge">BERT AI</span>
+          </p>
+        </div>
       </header>
 
+      {/* Stats Bar */}
+      {stats && (
+        <div className="stats-bar">
+          <div className="stat-item">
+            <span className="stat-value">{stats.total_pois}</span>
+            <span className="stat-label">POIs</span>
+          </div>
+          <div className="stat-item">
+            <span className="stat-value">{stats.total_users}</span>
+            <span className="stat-label">Users</span>
+          </div>
+          <div className="stat-item">
+            <span className="stat-value">{stats.total_visits}</span>
+            <span className="stat-label">Visits</span>
+          </div>
+          <div className="stat-item">
+            <span className="stat-value">{stats.cache_size}</span>
+            <span className="stat-label">Cached Routes</span>
+          </div>
+        </div>
+      )}
+
+      {/* Success Message */}
+      {successMessage && (
+        <div className="success-message">
+          ✓ {successMessage}
+        </div>
+      )}
+
+      {/* Error Message */}
       {error && (
         <div className="error-message">
           ⚠️ {error}
@@ -140,26 +211,57 @@ function App() {
           <h2>Available Attractions</h2>
 
           <div className="theme-filter">
-            <label>Filter by Theme:</label>
+            <label htmlFor="theme-select">Filter by Theme:</label>
             <select
+              id="theme-select"
               value={selectedTheme}
               onChange={(e) => setSelectedTheme(e.target.value)}
+              className="theme-select"
             >
               {themes.map(theme => (
-                <option key={theme} value={theme}>{theme}</option>
+                <option key={theme} value={theme}>
+                  {theme === 'All'
+                    ? `All (${pois.length})`
+                    : `${theme} (${themeCounts[theme] || 0})`
+                  }
+                </option>
               ))}
             </select>
           </div>
 
           <div className="pois-list">
-            {filteredPOIs.length === 0 ? (
-              <p>No POIs available. Please start the backend server.</p>
+            {pois.length === 0 ? (
+              <div className="empty-state">
+                <p className="empty-message">
+                  No attractions loaded yet.
+                </p>
+                <p className="empty-hint">
+                  Make sure the backend server is running on port 5000
+                </p>
+              </div>
+            ) : filteredPOIs.length === 0 ? (
+              <div className="empty-state">
+                <p className="empty-message">
+                  No {selectedTheme} attractions found
+                </p>
+                <p className="empty-hint">
+                  Try selecting a different theme
+                </p>
+              </div>
             ) : (
               filteredPOIs.map(poi => (
                 <div
                   key={poi.id}
                   className={`poi-card ${currentRoute.includes(poi.id) ? 'selected' : ''}`}
                   onClick={() => addToRoute(poi.id)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      addToRoute(poi.id)
+                    }
+                  }}
                 >
                   <h3>{poi.fullName || poi.name}</h3>
                   <span className="poi-theme">{poi.theme}</span>
@@ -178,7 +280,12 @@ function App() {
 
           <div className="route-list">
             {currentRoute.length === 0 ? (
-              <p className="empty-message">Click on attractions to add them to your route</p>
+              <div className="empty-state">
+                <p className="empty-message">Your route is empty</p>
+                <p className="empty-hint">
+                  Click on attractions from the left panel to build your route
+                </p>
+              </div>
             ) : (
               currentRoute.map((poiId, index) => {
                 const poi = getPOIById(poiId)
@@ -192,6 +299,8 @@ function App() {
                     <button
                       className="remove-btn"
                       onClick={() => removeFromRoute(poiId)}
+                      aria-label={`Remove ${poi.fullName || poi.name} from route`}
+                      title="Remove from route"
                     >
                       ✕
                     </button>
@@ -207,7 +316,14 @@ function App() {
               onClick={getRecommendations}
               disabled={loading || currentRoute.length === 0}
             >
-              {loading ? 'Getting Recommendations...' : '🤖 Get AI Recommendations'}
+              {loading ? (
+                <>
+                  <span className="spinner"></span>
+                  Analyzing with BERT AI...
+                </>
+              ) : (
+                '🤖 Get AI Recommendations'
+              )}
             </button>
             {currentRoute.length > 0 && (
               <button className="btn btn-secondary" onClick={clearRoute}>
@@ -222,16 +338,30 @@ function App() {
           <h2>AI Recommendations</h2>
 
           <div className="recommendations-list">
-            {recommendations.length === 0 ? (
-              <p className="empty-message">
-                {loading ? 'Loading...' : 'Click "Get AI Recommendations" to see suggestions'}
-              </p>
+            {loading ? (
+              <div className="loading-state">
+                <div className="spinner large"></div>
+                <p className="loading-message">Analyzing your route with BERT AI...</p>
+                <p className="loading-hint">This may take a few seconds</p>
+              </div>
+            ) : recommendations.length === 0 ? (
+              <div className="empty-state">
+                <p className="empty-message">No recommendations yet</p>
+                <p className="empty-hint">
+                  {currentRoute.length === 0
+                    ? 'Add attractions to your route, then click "Get AI Recommendations"'
+                    : 'Click the "Get AI Recommendations" button to see personalized suggestions'
+                  }
+                </p>
+              </div>
             ) : (
               recommendations.map((rec, index) => (
                 <div key={rec.poi_id} className="recommendation-card">
                   <div className="rec-header">
                     <span className="rec-rank">#{index + 1}</span>
-                    <span className="rec-score">Score: {(rec.score * 100).toFixed(1)}%</span>
+                    <span className="rec-score">
+                      {(rec.score * 100).toFixed(1)}%
+                    </span>
                   </div>
                   <h3>{rec.name}</h3>
                   <span className="rec-theme">{rec.theme}</span>
@@ -241,7 +371,7 @@ function App() {
                     onClick={() => addToRoute(rec.poi_id)}
                     disabled={currentRoute.includes(rec.poi_id)}
                   >
-                    {currentRoute.includes(rec.poi_id) ? 'Already in Route' : 'Add to Route'}
+                    {currentRoute.includes(rec.poi_id) ? '✓ Already in Route' : '+ Add to Route'}
                   </button>
                 </div>
               ))
