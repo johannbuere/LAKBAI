@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react'
 import './App.css'
+import { IoSparkles, IoClose, IoCheckmark, IoWarning } from 'react-icons/io5'
+import { HiSparkles } from 'react-icons/hi2'
+import { TbRobot } from 'react-icons/tb'
 
 // API Base URL - change to backend URL
 const API_BASE = 'http://localhost:5000/api'
@@ -161,7 +164,10 @@ function App() {
     <div className="app-container">
       <header className="app-header">
         <div className="header-content">
-          <h1>🌟 LAKBAI Tourism Planner</h1>
+          <h1>
+            <HiSparkles className="header-icon" />
+            LAKBAI Tourism Planner
+          </h1>
           <p className="header-subtitle">
             AI-Powered Route Recommendations for Legazpi City
             <span className="badge">BERT AI</span>
@@ -194,14 +200,16 @@ function App() {
       {/* Success Message */}
       {successMessage && (
         <div className="success-message">
-          ✓ {successMessage}
+          <IoCheckmark className="message-icon" />
+          {successMessage}
         </div>
       )}
 
       {/* Error Message */}
       {error && (
         <div className="error-message">
-          ⚠️ {error}
+          <IoWarning className="message-icon" />
+          {error}
         </div>
       )}
 
@@ -266,7 +274,9 @@ function App() {
                   <h3>{poi.fullName || poi.name}</h3>
                   <span className="poi-theme">{poi.theme}</span>
                   {currentRoute.includes(poi.id) && (
-                    <span className="poi-badge">✓ In Route</span>
+                    <span className="poi-badge">
+                      <IoCheckmark /> In Route
+                    </span>
                   )}
                 </div>
               ))
@@ -302,7 +312,7 @@ function App() {
                       aria-label={`Remove ${poi.fullName || poi.name} from route`}
                       title="Remove from route"
                     >
-                      ✕
+                      <IoClose />
                     </button>
                   </div>
                 ) : null
@@ -322,7 +332,10 @@ function App() {
                   Analyzing with BERT AI...
                 </>
               ) : (
-                '🤖 Get AI Recommendations'
+                <>
+                  <TbRobot className="btn-icon" />
+                  Get AI Recommendations
+                </>
               )}
             </button>
             {currentRoute.length > 0 && (
@@ -371,7 +384,17 @@ function App() {
                     onClick={() => addToRoute(rec.poi_id)}
                     disabled={currentRoute.includes(rec.poi_id)}
                   >
-                    {currentRoute.includes(rec.poi_id) ? '✓ Already in Route' : '+ Add to Route'}
+                    {currentRoute.includes(rec.poi_id) ? (
+                      <>
+                        <IoCheckmark className="btn-icon" />
+                        Already in Route
+                      </>
+                    ) : (
+                      <>
+                        <IoSparkles className="btn-icon" />
+                        Add to Route
+                      </>
+                    )}
                   </button>
                 </div>
               ))

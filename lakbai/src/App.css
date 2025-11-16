@@ -90,18 +90,23 @@ body {
 /* App Container */
 .app-container {
   min-height: 100vh;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
   background: var(--color-background-light);
-  padding: 24px;
+  padding: 0;
+  overflow: hidden;
 }
 
 /* Header */
 .app-header {
   text-align: center;
   background: var(--color-white);
-  padding: 32px 24px;
-  margin-bottom: 24px;
-  border-radius: var(--border-radius);
+  padding: 24px;
+  margin: 0;
+  border-bottom: 2px solid var(--border-light);
   box-shadow: var(--shadow);
+  flex-shrink: 0;
 }
 
 .app-header h1 {
@@ -115,8 +120,9 @@ body {
   gap: 12px;
 }
 
-.app-header h1 .icon {
+.header-icon {
   font-size: 2.5rem;
+  color: var(--color-blue-primary);
 }
 
 .app-header p {
@@ -167,9 +173,8 @@ body {
 .error-message {
   background-color: var(--color-red);
   color: var(--text-white);
-  padding: 16px 24px;
-  border-radius: var(--border-radius);
-  margin-bottom: 24px;
+  padding: 12px 24px;
+  margin: 8px 16px;
   text-align: center;
   box-shadow: var(--shadow);
   animation: shake 0.5s;
@@ -177,6 +182,12 @@ body {
   align-items: center;
   justify-content: center;
   gap: 8px;
+  flex-shrink: 0;
+}
+
+.message-icon {
+  font-size: 1.25rem;
+  flex-shrink: 0;
 }
 
 @keyframes shake {
@@ -189,9 +200,8 @@ body {
 .success-message {
   background-color: var(--color-green);
   color: var(--text-white);
-  padding: 16px 24px;
-  border-radius: var(--border-radius);
-  margin-bottom: 24px;
+  padding: 12px 24px;
+  margin: 8px 16px;
   text-align: center;
   box-shadow: var(--shadow);
   animation: slideIn 0.3s ease-out;
@@ -199,6 +209,7 @@ body {
   align-items: center;
   justify-content: center;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 @keyframes slideIn {
@@ -214,16 +225,19 @@ body {
 
 /* Main Content - 3 Column Grid */
 .main-content {
+  flex: 1;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 24px;
-  max-width: 1600px;
-  margin: 0 auto;
+  gap: 16px;
+  padding: 16px;
+  overflow: hidden;
+  width: 100%;
 }
 
 @media (max-width: 1200px) {
   .main-content {
     grid-template-columns: 1fr;
+    overflow-y: auto;
   }
 }
 
@@ -236,6 +250,8 @@ body {
   display: flex;
   flex-direction: column;
   transition: box-shadow 0.3s ease;
+  overflow: hidden;
+  min-height: 0;
 }
 
 .panel:hover {
@@ -302,10 +318,12 @@ body {
 }
 
 /* POI List */
-.pois-list {
+.pois-list,
+.route-list,
+.recommendations-list {
   flex: 1;
   overflow-y: auto;
-  max-height: 600px;
+  min-height: 0;
   padding-right: 8px;
 }
 
@@ -389,6 +407,9 @@ body {
   font-size: 0.6875rem;
   font-weight: 600;
   box-shadow: var(--shadow);
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 /* Empty Message */
@@ -535,6 +556,14 @@ body {
   opacity: 0.6;
   cursor: not-allowed;
   background: var(--color-gray-lighter);
+}
+
+.btn-icon {
+  font-size: 1.125rem;
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+  margin-right: 6px;
 }
 
 .btn-secondary {
@@ -740,11 +769,11 @@ body {
 .stats-bar {
   display: flex;
   gap: 16px;
-  margin-bottom: 24px;
+  margin: 8px 16px;
   padding: 16px;
   background: var(--color-blue-background);
-  border-radius: var(--border-radius);
   border: 1px solid var(--color-blue-input-border);
+  flex-shrink: 0;
 }
 
 .stat-item {
@@ -769,16 +798,16 @@ body {
 
 /* Responsive Design */
 @media (max-width: 768px) {
-  .app-container {
-    padding: 16px;
-  }
-
   .app-header {
-    padding: 24px 16px;
+    padding: 16px;
   }
 
   .app-header h1 {
     font-size: 1.5rem;
+  }
+
+  .header-icon {
+    font-size: 1.75rem;
   }
 
   .panel {
@@ -786,12 +815,24 @@ body {
   }
 
   .main-content {
-    gap: 16px;
+    gap: 12px;
+    padding: 12px;
   }
 
   .stats-bar {
-    flex-direction: column;
+    flex-wrap: wrap;
     gap: 12px;
+    margin: 8px 12px;
+  }
+
+  .stat-item {
+    min-width: calc(50% - 6px);
+  }
+
+  .success-message,
+  .error-message {
+    margin: 8px 12px;
+    font-size: 0.875rem;
   }
 }
 
