@@ -1,68 +1,71 @@
+/** @import must precede all other statements */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Raleway:wght@400;700&display=swap");
+
+@font-face {
+  font-family: 'Stack Sans Notch';
+  font-style: normal;
+  font-weight: 200 700;
+  src: url('https://fonts.cdnfonts.com/s/96815/StackSansNotchRegular.woff') format('woff');
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  --color-lakbai-green: #6dd14a;
+  --color-lakbai-green-dark: #6baa75;
+  --color-lakbai-lime: #cbff4d;
+  --color-lakbai-green-light: #84dd63;
+  --color-lakbai-green-bg: #f0fbea;
+  --color-lakbai-gray: #f8f8f8;
+  --color-lakbai-gray-text: #8987a1;
+  --color-lakbai-gray-dark: #5e5e5e;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
-}
-
-body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
-}
-
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-}
-
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
-}
-
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
+@layer base {
+  body {
+    @apply bg-white text-gray-900 font-sans;
   }
-  a:hover {
-    color: #747bff;
+
+  :where(p, span, li, h1, h2, h3, h4, h5, h6, a, button, label, td, th) {
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
-  button {
-    background-color: #f9f9f9;
+
+  pre,
+  code {
+    overflow-x: auto;
+    white-space: pre;
+  }
+
+  /* Style date and time input dropdowns */
+  input[type="date"]::-webkit-calendar-picker-indicator,
+  input[type="time"]::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    filter: brightness(0) saturate(100%) invert(73%) sepia(31%) saturate(1679%) hue-rotate(50deg) brightness(95%) contrast(89%);
+  }
+
+  input[type="date"]::-webkit-calendar-picker-indicator:hover,
+  input[type="time"]::-webkit-calendar-picker-indicator:hover {
+    filter: brightness(0) saturate(100%) invert(66%) sepia(31%) saturate(1679%) hue-rotate(50deg) brightness(85%) contrast(89%);
+  }
+
+  /* Style the date input text color */
+  input[type="date"],
+  input[type="time"] {
+    color: #374151;
+    font-weight: 500;
+  }
+
+  input[type="date"]::-webkit-datetime-edit-fields-wrapper,
+  input[type="time"]::-webkit-datetime-edit-fields-wrapper {
+    color: #374151;
+  }
+
+  input[type="date"]::-webkit-datetime-edit-text,
+  input[type="time"]::-webkit-datetime-edit-text {
+    color: #9ca3af;
   }
 }

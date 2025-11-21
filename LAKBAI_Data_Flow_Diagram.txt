@@ -1,0 +1,576 @@
+LAKBAI Tourism Recommendation System - Data Flow Diagram (DFD)
+================================================================
+
+🌊 LAKBAI DATA FLOW DIAGRAM 🌊
+
+════════════════════════════════════════════════════════════════════
+📊 LEVEL 0 - CONTEXT DIAGRAM (System Overview)
+════════════════════════════════════════════════════════════════════
+
+DFD COMPONENT LEGEND:
+🔲 EXTERNAL ENTITY    ○ PROCESS    ═ DATA STORE    ──→ DATA FLOW
+
+                    🌍 External World
+                         │
+                         ▼
+🔲┌─────────────┐  Location Data  ○┌─────────────────────────┐
+  │   Tourist   │ ◄──────────────► │                         │
+  │   (User)    │                 │       LAKBAI            │
+  └─────────────┘                 │   Tourism System       │
+           │                      │      (Process 0)        │
+           │ Route Requests        │                         │
+           │ POI Preferences       └─────────────────────────┘
+           │ Feedback                        │
+           ▼                                 │
+🔲┌─────────────┐                          │ OSRM Queries
+  │   Mobile    │                          │ Map Data
+  │   Device    │                          ▼
+  └─────────────┘               🔲┌─────────────────────────┐
+           ▲                      │     OpenStreetMap       │
+           │                      │    (OSRM Service)       │
+           │ Offline Navigation   │                         │
+           │ Turn-by-turn         └─────────────────────────┘
+           │                                 ▲
+           ▼                                 │
+🔲┌─────────────┐                          │ POI Database
+  │  GPS/Maps   │                          │ User Visit History
+  │  Services   │                          ▼
+  └─────────────┘               ═┌─────────────────────────┐
+                                 │    Historical Data      │
+                                 │   (CSV Files/DB)        │
+                                 │      (Data Store)       │
+                                 └─────────────────────────┘
+
+════════════════════════════════════════════════════════════════════
+📋 LEVEL 1 - MAJOR PROCESSES
+════════════════════════════════════════════════════════════════════
+
+🔲 Tourist ──┐
+          │ 1. Route Request ──→ DATA FLOW
+          │ 2. Location Data ──→ DATA FLOW
+          ▼
+    ○┌─────────────┐
+     │     1.0     │ ◄──── POI Database ──→ DATA FLOW
+     │   Request   │ ◄──── User Preferences ──→ DATA FLOW
+     │ Processing  │ ◄──── Historical Visits ──→ DATA FLOW
+     │  (PROCESS)  │
+     └─────────────┘
+          │ Processed Request ──→ DATA FLOW
+          ▼
+    ○┌─────────────┐
+     │     2.0     │ ◄──── BERT Model ──→ DATA FLOW
+     │    AI       │ ◄──── Theme Classifications ──→ DATA FLOW
+     │Recommendation│ ◄──── User Patterns ──→ DATA FLOW
+     │  (PROCESS)  │
+     └─────────────┘
+          │ AI Predictions ──→ DATA FLOW
+          ▼
+    ○┌─────────────┐
+     │     3.0     │ ◄──── OSRM Data ──→ DATA FLOW
+     │   Route     │ ◄──── Distance Matrix ──→ DATA FLOW
+     │ Calculation │ ◄──── Transportation Mode ──→ DATA FLOW
+     │  (PROCESS)  │
+     └─────────────┘
+          │ Optimized Routes ──→ DATA FLOW
+          ▼
+    ○┌─────────────┐
+     │     4.0     │ ───► Offline Cache ──→ DATA FLOW
+     │   Offline   │ ───► Local Storage ──→ DATA FLOW
+     │ Preparation │ ───► Map Tiles ──→ DATA FLOW
+     │  (PROCESS)  │
+     └─────────────┘
+          │ Complete Route Package ──→ DATA FLOW
+          ▼
+    ○┌─────────────┐
+     │     5.0     │ ───► Web Interface ──→ DATA FLOW
+     │   Result    │ ───► Mobile App ──→ DATA FLOW
+     │ Delivery    │ ───► API Response ──→ DATA FLOW
+     │  (PROCESS)  │
+     └─────────────┘
+          │
+          ▼
+      🔲 Tourist
+
+════════════════════════════════════════════════════════════════════
+🔍 LEVEL 2 - DETAILED PROCESS BREAKDOWN
+════════════════════════════════════════════════════════════════════
+
+┌─────────────────────────────────────────────────────────────────┐
+│                    PROCESS 1.0 - REQUEST PROCESSING             │
+└─────────────────────────────────────────────────────────────────┘
+
+🔲 Tourist Request ──┐
+                  ▼ (User Input Data Flow)
+            ○┌─────────────┐
+             │    1.1      │ ◄──── ═ User Profile DB (DATA STORE)
+             │   User      │ ◄──── ═ Session Data (DATA STORE)
+             │Authentication│ ◄──── ═ Preferences (DATA STORE)
+             │  (PROCESS)  │
+             └─────────────┘
+                  │ Authenticated User ──→ DATA FLOW
+                  ▼
+            ○┌─────────────┐
+             │    1.2      │ ◄──── ═ Input Validation Rules (DATA STORE)
+             │   Input     │ ◄──── ═ Rate Limiting Config (DATA STORE)
+             │ Validation  │ ◄──── ═ Security Policies (DATA STORE)
+             │  (PROCESS)  │
+             └─────────────┘
+                  │ Valid Request ──→ DATA FLOW
+                  ▼
+            ○┌─────────────┐
+             │    1.3      │ ◄──── ═ POI-Legazpi.csv (DATA STORE)
+             │   Context   │ ◄──── ═ user_hometown.csv (DATA STORE)
+             │  Building   │ ◄──── ═ userVisits-Legazpi-allPOI.csv (DATA STORE)
+             │  (PROCESS)  │
+             └─────────────┘
+                  │ Context Data ──→ DATA FLOW
+                  ▼
+                To Process 2.0
+
+┌─────────────────────────────────────────────────────────────────┐
+│                PROCESS 2.0 - AI RECOMMENDATION ENGINE           │
+└─────────────────────────────────────────────────────────────────┘
+
+Context Data ──┐ (DATA FLOW from Process 1.0)
+               ▼
+         ○┌─────────────┐
+          │    2.1      │ ◄──── ═ smart_cache.pkl (DATA STORE)
+          │   Cache     │ ◄──── ═ bert_predictions_cache (DATA STORE)
+          │   Check     │ ◄──── ═ popular_routes_from_data (DATA STORE)
+          │ (PROCESS)   │
+          └─────────────┘
+               │ Cache Miss/Hit ──→ DATA FLOW
+               ▼
+         ○┌─────────────┐
+          │    2.2      │ ◄──── ═ BERT Model (output_Legazpi_e1_bert/) (DATA STORE)
+          │    BERT     │ ◄──── ═ config.json, model.safetensors (DATA STORE)
+          │ Inference   │ ◄──── ═ tokenizer.json, vocab.txt (DATA STORE)
+          │ (PROCESS)   │
+          └─────────────┘
+               │ AI Predictions ──→ DATA FLOW
+               ▼
+         ○┌─────────────┐
+          │    2.3      │ ◄──── ═ Real User Patterns (DATA STORE)
+          │  Hybrid     │ ◄──── ═ Theme Preferences (DATA STORE)
+          │Optimization │ ◄──── ═ Transition Analysis (DATA STORE)
+          │ (PROCESS)   │
+          └─────────────┘
+               │ Optimized Recommendations ──→ DATA FLOW
+               ▼
+         ○┌─────────────┐
+          │    2.4      │ ───► ═ Updated Cache (DATA STORE)
+          │   Score     │ ───► ═ Performance Metrics (DATA STORE)
+          │ Calculation │ ───► ═ Analytics Data (DATA STORE)
+          │ (PROCESS)   │
+          └─────────────┘
+               │ Scored Recommendations ──→ DATA FLOW
+               ▼
+             To Process 3.0
+
+┌─────────────────────────────────────────────────────────────────┐
+│               PROCESS 3.0 - ROUTE CALCULATION                   │
+└─────────────────────────────────────────────────────────────────┘
+
+Recommendations ──┐ (DATA FLOW from Process 2.0)
+                  ▼
+            ○┌─────────────┐
+             │    3.1      │ ◄──── ═ OSRM Car Data (DATA STORE)
+             │Transportation│ ◄──── ═ OSRM Bicycle Data (DATA STORE)
+             │Mode Selection│ ◄──── ═ OSRM Foot Data (DATA STORE)
+             │  (PROCESS)  │
+             └─────────────┘
+                  │ Selected Mode ──→ DATA FLOW
+                  ▼
+            ○┌─────────────┐
+             │    3.2      │ ◄──── ═ legazpi.osrm.geometry (DATA STORE)
+             │   OSRM      │ ◄──── ═ legazpi.osrm.cells (DATA STORE)
+             │  Routing    │ ◄──── ═ Distance Matrix (DATA STORE)
+             │ (PROCESS)   │
+             └─────────────┘
+                  │ Route Segments ──→ DATA FLOW
+                  ▼
+            ○┌─────────────┐
+             │    3.3      │ ◄──── ═ Bootstrap Duration Data (DATA STORE)
+             │   Time      │ ◄──── ═ POI Visit Durations (DATA STORE)
+             │ Estimation  │ ◄──── ═ Traffic Patterns (DATA STORE)
+             │ (PROCESS)   │
+             └─────────────┘
+                  │ Time Estimates ──→ DATA FLOW
+                  ▼
+            ○┌─────────────┐
+             │    3.4      │ ───► ═ Optimized Route (DATA STORE)
+             │   Route     │ ───► ═ Turn-by-turn Instructions (DATA STORE)
+             │Optimization │ ───► ═ Alternative Paths (DATA STORE)
+             │ (PROCESS)   │
+             └─────────────┘
+                  │ Complete Route Data ──→ DATA FLOW
+                  ▼
+                To Process 4.0
+
+┌─────────────────────────────────────────────────────────────────┐
+│              PROCESS 4.0 - OFFLINE PREPARATION                  │
+└─────────────────────────────────────────────────────────────────┘
+
+Route Data ──┐ (DATA FLOW from Process 3.0)
+             ▼
+       ○┌─────────────┐
+        │    4.1      │ ◄──── ═ Map Tile Sources (DATA STORE)
+        │    Map      │ ◄──── ═ Zoom Level Config (DATA STORE)
+        │   Tile      │ ◄──── ═ Region Boundaries (DATA STORE)
+        │ Download    │
+        │ (PROCESS)   │
+        └─────────────┘
+             │ Map Tiles ──→ DATA FLOW
+             ▼
+       ○┌─────────────┐
+        │    4.2      │ ◄──── ═ POI Metadata (DATA STORE)
+        │   Offline   │ ◄──── ═ Route Instructions (DATA STORE)
+        │   Data      │ ◄──── ═ Navigation Points (DATA STORE)
+        │ Packaging   │
+        │ (PROCESS)   │
+        └─────────────┘
+             │ Offline Package ──→ DATA FLOW
+             ▼
+       ○┌─────────────┐
+        │    4.3      │ ───► ═ Local SQLite DB (DATA STORE)
+        │   Local     │ ───► ═ Cache Files (DATA STORE)
+        │  Storage    │ ───► ═ Compressed Data (DATA STORE)
+        │ (PROCESS)   │
+        └─────────────┘
+             │ Stored Data ──→ DATA FLOW
+             ▼
+       ○┌─────────────┐
+        │    4.4      │ ───► ═ Sync Status (DATA STORE)
+        │   Sync      │ ───► ═ Version Control (DATA STORE)
+        │ Management  │ ───► ═ Update Flags (DATA STORE)
+        │ (PROCESS)   │
+        └─────────────┘
+             │ Sync Metadata ──→ DATA FLOW
+             ▼
+           To Process 5.0
+
+┌─────────────────────────────────────────────────────────────────┐
+│                PROCESS 5.0 - RESULT DELIVERY                   │
+└─────────────────────────────────────────────────────────────────┘
+
+Complete Data ──┐ (DATA FLOW from Process 4.0)
+                ▼
+          ○┌─────────────┐
+           │    5.1      │ ◄──── ═ Response Format Templates (DATA STORE)
+           │  Response   │ ◄──── ═ API Documentation (DATA STORE)
+           │ Formatting  │ ◄──── ═ Client Requirements (DATA STORE)
+           │ (PROCESS)   │
+           └─────────────┘
+                │ Formatted Response ──→ DATA FLOW
+                ▼
+          ○┌─────────────┐
+           │    5.2      │ ───► 🔲 Web API Response (EXTERNAL ENTITY)
+           │   Multi     │ ───► 🔲 Mobile App Data (EXTERNAL ENTITY)
+           │  Platform   │ ───► 🔲 WebSocket Updates (EXTERNAL ENTITY)
+           │ Delivery    │
+           │ (PROCESS)   │
+           └─────────────┘
+                │ Platform-specific Data ──→ DATA FLOW
+                ▼
+          ○┌─────────────┐
+           │    5.3      │ ───► ═ User Analytics (DATA STORE)
+           │Performance  │ ───► ═ Response Time Logs (DATA STORE)
+           │ Monitoring  │ ───► ═ Error Tracking (DATA STORE)
+           │ (PROCESS)   │
+           └─────────────┘
+                │ Metrics ──→ DATA FLOW
+                ▼
+            🔲 Tourist (EXTERNAL ENTITY)
+
+════════════════════════════════════════════════════════════════════
+📊 DATA STORES (Repository Details)
+════════════════════════════════════════════════════════════════════
+
+═D1 ┌─────────────────────────────────────────────────────────────┐
+    │                    POI DATABASE (DATA STORE)                │
+    │                                                             │
+    │ ▪ POI-Legazpi.csv                                           │
+    │   ├── poiID (Primary Key)                                   │
+    │   ├── poiName                                               │
+    │   ├── theme (Cultural, Park, Religious, etc.)              │
+    │   ├── lat, long (GPS Coordinates)                          │
+    │   └── description                                           │
+    │                                                             │
+    │ ▪ userVisits-Legazpi-allPOI.csv                            │
+    │   ├── userID                                                │
+    │   ├── poiID (Foreign Key)                                   │
+    │   ├── seqID (Visit sequence)                               │
+    │   ├── dateTaken (Timestamp)                                │
+    │   └── visitDuration                                         │
+    │                                                             │
+    │ ▪ user_hometown.csv                                         │
+    │   ├── UserID (Primary Key)                                  │
+    │   ├── JoinDate                                              │
+    │   ├── Occupation                                            │
+    │   ├── Hometown, current_city, country                      │
+    │   └── preferences                                           │
+    └─────────────────────────────────────────────────────────────┘
+
+═D2 ┌─────────────────────────────────────────────────────────────┐
+    │                 AI MODEL STORE (DATA STORE)                │
+    │                                                             │
+    │ ▪ output_Legazpi_e1_bert/                                   │
+    │   ├── config.json (Model Configuration)                     │
+    │   ├── model.safetensors (Trained Weights)                  │
+    │   ├── tokenizer.json (Text Processing)                     │
+    │   ├── vocab.txt (Vocabulary)                               │
+    │   ├── special_tokens_map.json                              │
+    │   └── training_args.bin                                     │
+    │                                                             │
+    │ ▪ smart_cache.pkl                                           │
+    │   ├── popular_routes_from_data                             │
+    │   ├── bert_predictions_cache                               │
+    │   ├── theme_groups                                         │
+    │   ├── distance_matrix                                      │
+    │   └── performance_metrics                                   │
+    └─────────────────────────────────────────────────────────────┘
+
+═D3 ┌─────────────────────────────────────────────────────────────┐
+    │               NAVIGATION DATA STORE (DATA STORE)           │
+    │                                                             │
+    │ ▪ osrm-docker/bicycle/                                      │
+    │   ├── legazpi.osm.pbf (Map Data)                           │
+    │   ├── legazpi.osrm.geometry (Route Geometry)               │
+    │   ├── legazpi.osrm.cells (Routing Cells)                   │
+    │   ├── legazpi.osrm.edges (Road Network)                    │
+    │   └── [routing optimization files]                          │
+    │                                                             │
+    │ ▪ osrm-docker/car/ (Same structure for cars)               │
+    │ ▪ osrm-docker/foot/ (Same structure for walking)           │
+    │                                                             │
+    │ ▪ Distance Matrix Cache                                     │
+    │   ├── POI-to-POI distances                                 │
+    │   ├── Travel time estimates                                │
+    │   └── Route alternatives                                    │
+    └─────────────────────────────────────────────────────────────┘
+
+═D4 ┌─────────────────────────────────────────────────────────────┐
+    │                  USER SESSION STORE (DATA STORE)           │
+    │                                                             │
+    │ ▪ Active Sessions                                           │
+    │   ├── session_id                                            │
+    │   ├── user_preferences                                      │
+    │   ├── current_route                                         │
+    │   ├── last_activity                                         │
+    │   └── device_info                                           │
+    │                                                             │
+    │ ▪ Offline Data Cache                                        │
+    │   ├── downloaded_regions                                    │
+    │   ├── cached_recommendations                               │
+    │   ├── saved_routes                                         │
+    │   └── sync_status                                          │
+    └─────────────────────────────────────────────────────────────┘
+
+═D5 ┌─────────────────────────────────────────────────────────────┐
+    │                 ANALYTICS DATA STORE (DATA STORE)          │
+    │                                                             │
+    │ ▪ Performance Metrics                                       │
+    │   ├── api_response_times                                    │
+    │   ├── bert_inference_times                                 │
+    │   ├── cache_hit_rates                                      │
+    │   ├── error_logs                                           │
+    │   └── system_resource_usage                                │
+    │                                                             │
+    │ ▪ User Behavior Analytics                                   │
+    │   ├── route_popularity                                     │
+    │   ├── poi_visit_patterns                                   │
+    │   ├── recommendation_acceptance                            │
+    │   ├── offline_usage_stats                                  │
+    │   └── user_journey_analysis                                │
+    └─────────────────────────────────────────────────────────────┘
+
+════════════════════════════════════════════════════════════════════
+🔄 DATA FLOW PATTERNS & SCENARIOS
+════════════════════════════════════════════════════════════════════
+
+┌─────────────────────────────────────────────────────────────────┐
+│                    SCENARIO 1: ONLINE RECOMMENDATION            │
+└─────────────────────────────────────────────────────────────────┘
+
+🔲 Tourist Request (Starting POI + Preferences) ──→ DATA FLOW
+    │
+    ├─► ○ Process 1.0: Authentication & Validation
+    │   ├─► ═ D1: User Profile Lookup (DATA STORE)
+    │   └─► ═ D4: Session Creation (DATA STORE)
+    │
+    ├─► ○ Process 2.0: AI Recommendation
+    │   ├─► ═ D2: Check Cache (smart_cache.pkl) (DATA STORE)
+    │   ├─► ═ D2: BERT Model Inference (if cache miss) (DATA STORE)
+    │   ├─► ═ D1: Historical Visit Analysis (DATA STORE)
+    │   └─► ═ D2: Update Cache with new predictions (DATA STORE)
+    │
+    ├─► ○ Process 3.0: Route Calculation
+    │   ├─► ═ D3: OSRM Route Query (DATA STORE)
+    │   ├─► ═ D3: Distance Matrix Lookup (DATA STORE)
+    │   └─► ○ Process: Duration Estimation
+    │
+    ├─► ○ Process 4.0: Offline Package Preparation
+    │   ├─► ═ D3: Map Tile Selection (DATA STORE)
+    │   ├─► ═ D4: Local Storage Preparation (DATA STORE)
+    │   └─► ○ Process: Data Compression
+    │
+    └─► ○ Process 5.0: Response Delivery
+        ├─► ═ D5: Performance Logging (DATA STORE)
+        ├─► ═ D5: User Analytics Tracking (DATA STORE)
+        └─► 🔲 Tourist: Complete Route Package (EXTERNAL ENTITY)
+
+┌─────────────────────────────────────────────────────────────────┐
+│                    SCENARIO 2: OFFLINE NAVIGATION               │
+└─────────────────────────────────────────────────────────────────┘
+
+🔲 Tourist Request (Current Location + Destination) ──→ DATA FLOW
+    │
+    ├─► ○ Local Process: Offline Route Calculation
+    │   ├─► ═ D4: Local OSRM Data Query (DATA STORE)
+    │   ├─► ═ D4: Cached POI Information (DATA STORE)
+    │   └─► ═ D4: Stored Recommendations (DATA STORE)
+    │
+    ├─► ○ Local Process: GPS Navigation
+    │   ├─► 🔲 Device: GPS Location Updates (EXTERNAL ENTITY)
+    │   ├─► ═ D4: Route Progress Tracking (DATA STORE)
+    │   └─► ○ Process: Turn-by-turn Instructions
+    │
+    └─► ○ Background Process: Sync Preparation
+        ├─► ═ D4: Queue User Actions (DATA STORE)
+        ├─► ═ D4: Store Offline Analytics (DATA STORE)
+        └─► ○ Process: Prepare Upload Data
+
+┌─────────────────────────────────────────────────────────────────┐
+│                  SCENARIO 3: BERT MODEL TRAINING                │
+└─────────────────────────────────────────────────────────────────┘
+
+Historical Data Input ──→ DATA FLOW
+    │
+    ├─► ○ Process: Data Preprocessing
+    │   ├─► ═ D1: Load User Visit Data (DATA STORE)
+    │   ├─► ═ D1: POI Theme Classification (DATA STORE)
+    │   └─► ○ Process: Feature Engineering
+    │
+    ├─► ○ Process: BERT Training
+    │   ├─► ○ Process: Sequence Generation
+    │   ├─► ○ Process: Model Training Loop
+    │   └─► ○ Process: Validation & Testing
+    │
+    ├─► ○ Process: Model Optimization
+    │   ├─► ○ Process: Hyperparameter Tuning
+    │   ├─► ○ Process: Performance Evaluation
+    │   └─► ○ Process: Model Selection
+    │
+    └─► Output: Trained Model ──→ DATA FLOW
+        ├─► ═ D2: Save Model Artifacts (DATA STORE)
+        ├─► ═ D2: Update Model Configuration (DATA STORE)
+        └─► ═ D2: Generate Prediction Cache (DATA STORE)
+
+┌─────────────────────────────────────────────────────────────────┐
+│                SCENARIO 4: HYBRID SMART CACHING                 │
+└─────────────────────────────────────────────────────────────────┘
+
+System Initialization ──→ DATA FLOW
+    │
+    ├─► ○ Process: Cache Building
+    │   ├─► ═ D1: Analyze Real User Patterns (DATA STORE)
+    │   ├─► ═ D1: Extract Popular Transitions (DATA STORE)
+    │   ├─► ═ D1: Calculate Theme Preferences (DATA STORE)
+    │   └─► ═ D2: Pre-compute BERT Predictions (DATA STORE)
+    │
+    ├─► ○ Process: Performance Optimization
+    │   ├─► ═ D2: Build Distance Matrix (DATA STORE)
+    │   ├─► ═ D2: Create Theme Groups (DATA STORE)
+    │   ├─► ═ D2: Generate Quick Lookups (DATA STORE)
+    │   └─► ═ D3: Optimize OSRM Queries (DATA STORE)
+    │
+    └─► Output: Smart Cache ──→ DATA FLOW
+        ├─► ═ D2: Save Optimized Cache (DATA STORE)
+        ├─► ═ D5: Log Cache Performance (DATA STORE)
+        └─► ○ Process: Enable Fast Responses
+
+════════════════════════════════════════════════════════════════════
+📈 DFD COMPONENT SUMMARY
+════════════════════════════════════════════════════════════════════
+
+🔲 EXTERNAL ENTITIES (Sources & Destinations of Data):
+   • Tourist (User) - Primary system user
+   • Mobile Device - Physical device interface
+   • GPS/Maps Services - Location data provider
+   • OpenStreetMap (OSRM Service) - Navigation data source
+   • Web API Response - External web clients
+   • Mobile App Data - External mobile clients
+   • WebSocket Updates - Real-time communication
+
+○ PROCESSES (Data Transformation Activities):
+   • 1.0 Request Processing - User input validation & context building
+   • 2.0 AI Recommendation - BERT-based intelligent recommendations
+   • 3.0 Route Calculation - OSRM-based routing & optimization
+   • 4.0 Offline Preparation - Data packaging for offline use
+   • 5.0 Result Delivery - Multi-platform response formatting
+   • Sub-processes (1.1-5.3) - Detailed transformation steps
+
+═ DATA STORES (Data at Rest):
+   • D1 POI Database - Tourism points & user visit history
+   • D2 AI Model Store - BERT models & smart cache
+   • D3 Navigation Data Store - OSRM routing data
+   • D4 User Session Store - Active sessions & offline cache
+   • D5 Analytics Data Store - Performance & behavior metrics
+
+──→ DATA FLOWS (Data in Motion):
+   • User Input Data Flow - Request & preference data
+   • AI Predictions Data Flow - BERT recommendation results
+   • Route Data Flow - Navigation & timing information
+   • Cache Data Flow - Performance optimization data
+   • Response Data Flow - Final results to users
+
+════════════════════════════════════════════════════════════════════
+📈 DATA TRANSFORMATION DETAILS
+════════════════════════════════════════════════════════════════════
+
+🔄 INPUT TRANSFORMATIONS:
+   Raw User Request → Validated API Request → Context Object
+   GPS Coordinates → Spatial Query → Nearest POIs
+   User Preferences → Feature Vector → BERT Input Sequence
+
+🧠 AI PROCESSING TRANSFORMATIONS:
+   Historical Visits → User Patterns → Preference Profiles
+   POI Sequences → BERT Tokens → Masked Predictions
+   Real User Data → Statistical Analysis → Recommendation Rules
+
+🗺️ NAVIGATION TRANSFORMATIONS:
+   POI List → Coordinate Pairs → OSRM Route Query
+   Route Geometry → Turn Instructions → Navigation Steps
+   Distance Matrix → Time Estimates → Duration Predictions
+
+📱 OUTPUT TRANSFORMATIONS:
+   Route Data → JSON Response → Web Interface
+   Navigation Steps → Voice Instructions → Mobile App
+   Offline Package → Compressed Data → Local Storage
+
+════════════════════════════════════════════════════════════════════
+🎯 PERFORMANCE OPTIMIZATIONS IN DATA FLOW
+════════════════════════════════════════════════════════════════════
+
+⚡ SPEED OPTIMIZATIONS:
+   • Cache-First Strategy: Check D2 before BERT inference
+   • Pre-computed Matrices: D3 distance lookups (sub-millisecond)
+   • Parallel Processing: Multiple recommendation sources
+   • Smart Fallbacks: Rule-based when BERT unavailable
+
+💾 STORAGE OPTIMIZATIONS:
+   • Compressed Cache: Pickle format for fast I/O
+   • Indexed Lookups: Hash-based POI retrieval
+   • Lazy Loading: Load data only when needed
+   • Smart Cleanup: Remove stale cache entries
+
+🌐 NETWORK OPTIMIZATIONS:
+   • Offline-First: Local data takes precedence
+   • Background Sync: Upload analytics when connected
+   • Differential Updates: Only sync changed data
+   • Compression: Minimize data transfer size
+
+This comprehensive DFD shows how your LAKBAI system efficiently processes
+tourism data through multiple layers, balancing AI intelligence with
+real-time performance requirements while maintaining full offline
+capabilities.
