@@ -11,8 +11,12 @@ import editIcon from "../assets/tabler--edit.svg";
 import carIcon from "../assets/mingcute--car-fill.svg";
 import bicycleIcon from "../assets/iconoir--bicycle.svg";
 import walkIcon from "../assets/ri--walk-fill.svg";
+import menuIcon from "../assets/zondicons--dots-horizontal-triple.svg";
 import { loadPOIData, type POI } from "../lib/poiData";
 import LocationCard from "../components/LocationCard";
+import { getRoute, getRoutesBatch } from "../lib/routingService";
+import RecommendationPanel from "../components/RecommendationPanel";
+import { getRecommendations, type Recommendation } from "../lib/recommendationService";
 
 interface Location {
   id: string;
@@ -32,6 +36,13 @@ interface RouteInfo {
   bicycle: string;
   foot: string;
   distance: string;
+  geometry?: string; // Store the route geometry
+}
+
+interface RouteGeometry {
+  car?: any;
+  bicycle?: any;
+  foot?: any;
 }
 
 export default function Map() {
@@ -47,14 +58,58 @@ export default function Map() {
   const [pendingLocation, setPendingLocation] = useState<Location | null>(null);
   const [editingLocationId, setEditingLocationId] = useState<string | null>(null);
   const [routeInfos, setRouteInfos] = useState<Record<string, RouteInfo>>({});
+  const [routeGeometries, setRouteGeometries] = useState<Record<string, RouteGeometry>>({});
+  const [activeRoutes, setActiveRoutes] = useState<Record<string, string>>({}); // key: locationPair, value: profile (car/bicycle/foot)
   const [poiData, setPOIData] = useState<POI[]>([]);
   const [selectedPOI, setSelectedPOI] = useState<POI | null>(null);
   const [cardPosition, setCardPosition] = useState<{ x: number; y: number } | null>(null);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  
+  // Recommendation state
+  const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
+  const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(false);
+  
+  // Itinerary metadata state
+  const [itineraryTitle, setItineraryTitle] = useState("My Trip");
+  const [itineraryDateFrom, setItineraryDateFrom] = useState("");
+  const [itineraryDateTo, setItineraryDateTo] = useState("");
+  const [itineraryDescription, setItineraryDescription] = useState("Add a description...");
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [isEditingDates, setIsEditingDates] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   // Load POI data from CSV
   useEffect(() => {
     loadPOIData().then(setPOIData);
   }, []);
+
+  // Fetch AI recommendations when locations change
+  useEffect(() => {
+    const fetchRecommendations = async () => {
+      if (locations.length === 0) {
+        setRecommendations([]);
+        return;
+      }
+
+      console.log('🤖 Fetching recommendations for route:', locations.map(loc => loc.poiID));
+      setIsLoadingRecommendations(true);
+      try {
+        const currentRoute = locations.map(loc => loc.poiID);
+        const recs = await getRecommendations(currentRoute, 10);
+        console.log('✅ Got recommendations:', recs.length, recs);
+        setRecommendations(recs);
+      } catch (error) {
+        console.error('❌ Failed to fetch recommendations:', error);
+        setRecommendations([]);
+      } finally {
+        setIsLoadingRecommendations(false);
+      }
+    };
+
+    fetchRecommendations();
+  }, [locations]);
 
   // Initialize map and add POI markers
   useEffect(() => {
@@ -186,82 +241,249 @@ export default function Map() {
     };
   }, [lng, lat, zoom, poiData]);
 
-  // Fetch route info from OSRM
-  const fetchRouteInfo = async (
-    from: [number, number],
-    to: [number, number],
-    profile: string
-  ) => {
-    try {
-      const response = await fetch(
-        `http://router.project-osrm.org/route/v1/${profile}/${from[0]},${from[1]};${to[0]},${to[1]}?overview=false`
-      );
-      const data = await response.json();
-      if (data.code === "Ok" && data.routes && data.routes[0]) {
-        const duration = data.routes[0].duration; // in seconds
-        const distance = data.routes[0].distance; // in meters
-        return {
-          duration: Math.round(duration / 60), // convert to minutes
-          distance: distance, // keep in meters
-        };
+  // Adjust map controls position based on sidebar state
+  useEffect(() => {
+    if (!map.current) return;
+    
+    const controlContainer = document.querySelector('.maplibregl-ctrl-bottom-right');
+    if (controlContainer instanceof HTMLElement) {
+      if (isSidebarCollapsed) {
+        controlContainer.style.right = '10px';
+        controlContainer.style.transition = 'right 0.2s ease-out';
+      } else {
+        controlContainer.style.right = '510px'; // 500px sidebar + 10px margin
+        controlContainer.style.transition = 'right 0.2s ease-out';
       }
-    } catch (error) {
-      console.error(`Error fetching ${profile} route:`, error);
     }
-    return { duration: 0, distance: 0 };
-  };
+  }, [isSidebarCollapsed]);
 
-  // Calculate route between two specific locations
+  // Get OSRM base URLs from environment variables
+  // Calculate route between two specific locations using backend API
   const calculateRoute = async (from: Location, to: Location) => {
     const key = `${from.id}-${to.id}`;
     
-    const [carInfo, bicycleInfo, footInfo] = await Promise.all([
-      fetchRouteInfo(from.coordinates, to.coordinates, "driving"),
-      fetchRouteInfo(from.coordinates, to.coordinates, "cycling"),
-      fetchRouteInfo(from.coordinates, to.coordinates, "foot"),
-    ]);
+    try {
+      const routeData = await getRoute(
+        from.coordinates,
+        to.coordinates,
+        ["car", "bicycle", "foot"]
+      );
 
-    const distanceInMeters = carInfo.distance;
-    const formattedDistance = distanceInMeters >= 1000 
-      ? `${(distanceInMeters / 1000).toFixed(1)} km`
-      : `${Math.round(distanceInMeters)} m`;
-
-    setRouteInfos(prev => ({
-      ...prev,
-      [key]: {
-        car: `${carInfo.duration}m`,
-        bicycle: `${bicycleInfo.duration}m`,
-        foot: `${footInfo.duration}m`,
-        distance: formattedDistance,
+      if (!routeData) {
+        console.error('No route data returned from backend');
+        return;
       }
-    }));
+
+      setRouteInfos(prev => ({
+        ...prev,
+        [key]: {
+          car: routeData.car ? `${routeData.car.duration}m` : '0m',
+          bicycle: routeData.bicycle ? `${routeData.bicycle.duration}m` : '0m',
+          foot: routeData.foot ? `${routeData.foot.duration}m` : '0m',
+          distance: routeData.distance_formatted,
+        }
+      }));
+
+      // Store route geometries
+      setRouteGeometries(prev => ({
+        ...prev,
+        [key]: {
+          car: routeData.car?.geometry,
+          bicycle: routeData.bicycle?.geometry,
+          foot: routeData.foot?.geometry,
+        }
+      }));
+
+      // Automatically display car route on map
+      if (routeData.car?.geometry && map.current) {
+        // Remove existing route if any
+        if (map.current.getLayer(`route-${key}`)) {
+          map.current.removeLayer(`route-${key}`);
+        }
+        if (map.current.getLayer(`route-${key}-arrows`)) {
+          map.current.removeLayer(`route-${key}-arrows`);
+        }
+        if (map.current.getSource(`route-${key}`)) {
+          map.current.removeSource(`route-${key}`);
+        }
+
+        // Add car route
+        map.current.addSource(`route-${key}`, {
+          type: 'geojson',
+          data: {
+            type: 'Feature',
+            properties: {},
+            geometry: routeData.car.geometry,
+          },
+        });
+
+        map.current.addLayer({
+          id: `route-${key}`,
+          type: 'line',
+          source: `route-${key}`,
+          layout: {
+            'line-join': 'round',
+            'line-cap': 'round',
+          },
+          paint: {
+            'line-color': '#3B82F6',
+            'line-width': 4,
+            'line-opacity': 0.8,
+          },
+        });
+
+        // Add directional arrows on the route
+        map.current.addLayer({
+          id: `route-${key}-arrows`,
+          type: 'symbol',
+          source: `route-${key}`,
+          layout: {
+            'symbol-placement': 'line',
+            'symbol-spacing': 50,
+            'text-field': '▶',
+            'text-size': 16,
+            'text-keep-upright': false,
+            'text-rotation-alignment': 'map',
+            'text-pitch-alignment': 'viewport',
+          },
+          paint: {
+            'text-color': '#3B82F6',
+            'text-halo-color': '#ffffff',
+            'text-halo-width': 2,
+          },
+        });
+
+        setActiveRoutes(prev => ({
+          ...prev,
+          [key]: 'car',
+        }));
+      }
+    } catch (error) {
+      console.error('Error calculating route:', error);
+    }
   };
 
-  // Calculate routes between consecutive locations
+  // Calculate routes between consecutive locations using batch API
   useEffect(() => {
     const calculateRoutes = async () => {
-      const newRouteInfos: Record<string, RouteInfo> = {};
+      if (locations.length < 2) return;
 
+      // Build segments for batch request
+      const segments = [];
       for (let i = 0; i < locations.length - 1; i++) {
         const from = locations[i];
         const to = locations[i + 1];
-        const key = `${from.id}-${to.id}`;
-
-        const [carInfo, bicycleInfo, footInfo] = await Promise.all([
-          fetchRouteInfo(from.coordinates, to.coordinates, "driving"),
-          fetchRouteInfo(from.coordinates, to.coordinates, "cycling"),
-          fetchRouteInfo(from.coordinates, to.coordinates, "walking"),
-        ]);
-
-        newRouteInfos[key] = {
-          car: `${carInfo.duration}m`,
-          bicycle: `${bicycleInfo.duration}m`,
-          foot: `${footInfo.duration}m`,
-          distance: `${carInfo.distance} km`,
-        };
+        segments.push({
+          id: `${from.id}-${to.id}`,
+          from: from.coordinates,
+          to: to.coordinates,
+        });
       }
 
-      setRouteInfos(newRouteInfos);
+      try {
+        // Use batch API for better performance
+        const batchResults = await getRoutesBatch(segments, ["car", "bicycle", "foot"]);
+        
+        if (!batchResults) {
+          console.error('No batch results returned from backend');
+          return;
+        }
+
+        const newRouteInfos: Record<string, RouteInfo> = {};
+        const newRouteGeometries: Record<string, RouteGeometry> = {};
+
+        // Process batch results
+        Object.entries(batchResults).forEach(([key, routeData]) => {
+          newRouteInfos[key] = {
+            car: routeData.car ? `${routeData.car.duration}m` : '0m',
+            bicycle: routeData.bicycle ? `${routeData.bicycle.duration}m` : '0m',
+            foot: routeData.foot ? `${routeData.foot.duration}m` : '0m',
+            distance: routeData.distance_formatted,
+          };
+
+          newRouteGeometries[key] = {
+            car: routeData.car?.geometry,
+            bicycle: routeData.bicycle?.geometry,
+            foot: routeData.foot?.geometry,
+          };
+        });
+
+        setRouteInfos(newRouteInfos);
+        setRouteGeometries(newRouteGeometries);
+
+        // Automatically display all car routes on map with arrows
+        if (map.current) {
+          Object.entries(newRouteGeometries).forEach(([key, geometries]) => {
+            if (geometries.car) {
+              // Remove existing route if any
+              if (map.current?.getLayer(`route-${key}`)) {
+                map.current.removeLayer(`route-${key}`);
+              }
+              if (map.current?.getLayer(`route-${key}-arrows`)) {
+                map.current.removeLayer(`route-${key}-arrows`);
+              }
+              if (map.current?.getSource(`route-${key}`)) {
+                map.current.removeSource(`route-${key}`);
+              }
+
+              // Add car route line
+              map.current?.addSource(`route-${key}`, {
+                type: 'geojson',
+                data: {
+                  type: 'Feature',
+                  properties: {},
+                  geometry: geometries.car,
+                },
+              });
+
+              map.current?.addLayer({
+                id: `route-${key}`,
+                type: 'line',
+                source: `route-${key}`,
+                layout: {
+                  'line-join': 'round',
+                  'line-cap': 'round',
+                },
+                paint: {
+                  'line-color': '#3B82F6',
+                  'line-width': 4,
+                  'line-opacity': 0.8,
+                },
+              });
+
+              // Add directional arrows along the route
+              map.current?.addLayer({
+                id: `route-${key}-arrows`,
+                type: 'symbol',
+                source: `route-${key}`,
+                layout: {
+                  'symbol-placement': 'line',
+                  'symbol-spacing': 50,
+                  'text-field': '▶',
+                  'text-size': 16,
+                  'text-keep-upright': false,
+                  'text-rotation-alignment': 'map',
+                  'text-pitch-alignment': 'viewport',
+                },
+                paint: {
+                  'text-color': '#3B82F6',
+                  'text-halo-color': '#ffffff',
+                  'text-halo-width': 2,
+                },
+              });
+            }
+          });
+
+          // Set all routes as active with car profile
+          const newActiveRoutes: Record<string, string> = {};
+          Object.keys(newRouteGeometries).forEach(key => {
+            newActiveRoutes[key] = 'car';
+          });
+          setActiveRoutes(newActiveRoutes);
+        }
+      } catch (error) {
+        console.error('Error calculating routes:', error);
+      }
     };
 
     if (locations.length > 1) {
@@ -323,6 +545,29 @@ export default function Map() {
     setPendingLocation(null);
   };
 
+  // Handle recommendation click: zoom to location and add to itinerary
+  const handleRecommendationClick = (recommendation: Recommendation) => {
+    // Find the POI in our data
+    const poi = poiData.find(p => p.poiID === recommendation.poi_id);
+    if (!poi) {
+      console.error('POI not found:', recommendation.poi_id);
+      return;
+    }
+
+    // Zoom to the location
+    if (map.current) {
+      map.current.flyTo({
+        center: recommendation.coordinates,
+        zoom: 15,
+        essential: true,
+        duration: 1500,
+      });
+    }
+
+    // Add POI to itinerary (this will open the confirmation dialog)
+    addPOIToItinerary(poi);
+  };
+
   const toggleEditLocation = (locationId: string) => {
     setEditingLocationId(editingLocationId === locationId ? null : locationId);
   };
@@ -340,11 +585,262 @@ export default function Map() {
   };
 
   const removeLocation = (locationId: string) => {
+    const locationIndex = locations.findIndex(loc => loc.id === locationId);
+    
+    // Remove route layers/sources involving this location
+    if (locationIndex > 0) {
+      const prevKey = `${locations[locationIndex - 1].id}-${locationId}`;
+      if (map.current?.getLayer(`route-${prevKey}`)) {
+        map.current.removeLayer(`route-${prevKey}`);
+      }
+      if (map.current?.getLayer(`route-${prevKey}-arrows`)) {
+        map.current.removeLayer(`route-${prevKey}-arrows`);
+      }
+      if (map.current?.getSource(`route-${prevKey}`)) {
+        map.current.removeSource(`route-${prevKey}`);
+      }
+    }
+    
+    if (locationIndex < locations.length - 1) {
+      const nextKey = `${locationId}-${locations[locationIndex + 1].id}`;
+      if (map.current?.getLayer(`route-${nextKey}`)) {
+        map.current.removeLayer(`route-${nextKey}`);
+      }
+      if (map.current?.getLayer(`route-${nextKey}-arrows`)) {
+        map.current.removeLayer(`route-${nextKey}-arrows`);
+      }
+      if (map.current?.getSource(`route-${nextKey}`)) {
+        map.current.removeSource(`route-${nextKey}`);
+      }
+    }
+
+    // Remove from state
     setLocations((prev) => prev.filter((loc) => loc.id !== locationId));
+
+    // Clean up route info and geometries
+    setRouteInfos(prev => {
+      const newInfos = { ...prev };
+      Object.keys(newInfos).forEach(key => {
+        if (key.includes(locationId)) {
+          delete newInfos[key];
+        }
+      });
+      return newInfos;
+    });
+
+    setRouteGeometries(prev => {
+      const newGeoms = { ...prev };
+      Object.keys(newGeoms).forEach(key => {
+        if (key.includes(locationId)) {
+          delete newGeoms[key];
+        }
+      });
+      return newGeoms;
+    });
+
+    setActiveRoutes(prev => {
+      const newRoutes = { ...prev };
+      Object.keys(newRoutes).forEach(key => {
+        if (key.includes(locationId)) {
+          delete newRoutes[key];
+        }
+      });
+      return newRoutes;
+    });
+
+    // Reconnect remaining locations if there's a gap
+    if (locationIndex > 0 && locationIndex < locations.length - 1) {
+      const prevLocation = locations[locationIndex - 1];
+      const nextLocation = locations[locationIndex + 1];
+      // Calculate route will be triggered by the locations state change
+      setTimeout(() => {
+        calculateRoute(prevLocation, nextLocation);
+      }, 100);
+    }
   };
 
+  // Toggle route display on map
+  const toggleRouteDisplay = (locationPair: string, profile: 'car' | 'bicycle' | 'foot') => {
+    const currentProfile = activeRoutes[locationPair];
+    
+    // If clicking the same profile, remove the route
+    if (currentProfile === profile) {
+      // Remove route layer, arrows, and source
+      if (map.current?.getLayer(`route-${locationPair}`)) {
+        map.current.removeLayer(`route-${locationPair}`);
+      }
+      if (map.current?.getLayer(`route-${locationPair}-arrows`)) {
+        map.current.removeLayer(`route-${locationPair}-arrows`);
+      }
+      if (map.current?.getSource(`route-${locationPair}`)) {
+        map.current.removeSource(`route-${locationPair}`);
+      }
+      
+      setActiveRoutes(prev => {
+        const newRoutes = { ...prev };
+        delete newRoutes[locationPair];
+        return newRoutes;
+      });
+      return;
+    }
+
+    // Remove existing route if any
+    if (map.current?.getLayer(`route-${locationPair}`)) {
+      map.current.removeLayer(`route-${locationPair}`);
+    }
+    if (map.current?.getLayer(`route-${locationPair}-arrows`)) {
+      map.current.removeLayer(`route-${locationPair}-arrows`);
+    }
+    if (map.current?.getSource(`route-${locationPair}`)) {
+      map.current.removeSource(`route-${locationPair}`);
+    }
+
+    // Add new route
+    const geometry = routeGeometries[locationPair]?.[profile];
+    if (geometry && map.current) {
+      // Color based on profile
+      const colors = {
+        car: '#3B82F6', // blue
+        bicycle: '#10B981', // green
+        foot: '#F59E0B', // amber
+      };
+
+      map.current.addSource(`route-${locationPair}`, {
+        type: 'geojson',
+        data: {
+          type: 'Feature',
+          properties: {},
+          geometry: geometry,
+        },
+      });
+
+      map.current.addLayer({
+        id: `route-${locationPair}`,
+        type: 'line',
+        source: `route-${locationPair}`,
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'round',
+        },
+        paint: {
+          'line-color': colors[profile],
+          'line-width': 4,
+          'line-opacity': 0.8,
+        },
+      });
+
+      // Add directional arrows
+      map.current.addLayer({
+        id: `route-${locationPair}-arrows`,
+        type: 'symbol',
+        source: `route-${locationPair}`,
+        layout: {
+          'symbol-placement': 'line',
+          'symbol-spacing': 50,
+          'text-field': '\u25b6',
+          'text-size': 16,
+          'text-keep-upright': false,
+          'text-rotation-alignment': 'map',
+          'text-pitch-alignment': 'viewport',
+        },
+        paint: {
+          'text-color': colors[profile],
+          'text-halo-color': '#ffffff',
+          'text-halo-width': 2,
+        },
+      });
+
+      setActiveRoutes(prev => ({
+        ...prev,
+        [locationPair]: profile,
+      }));
+    }
+  };
+
+  // Itinerary metadata handlers
+  const handleTitleDoubleClick = () => {
+    setIsEditingTitle(true);
+  };
+
+  const handleDescriptionDoubleClick = () => {
+    setIsEditingDescription(true);
+  };
+
+  const handleTitleBlur = () => {
+    setIsEditingTitle(false);
+  };
+
+  const handleDescriptionBlur = () => {
+    setIsEditingDescription(false);
+  };
+
+  const deleteAllItinerary = () => {
+    if (window.confirm("Are you sure you want to delete the entire itinerary? This cannot be undone.")) {
+      // Remove all route layers and sources from the map
+      Object.keys(activeRoutes).forEach((locationPair) => {
+        if (map.current?.getLayer(`route-${locationPair}`)) {
+          map.current.removeLayer(`route-${locationPair}`);
+        }
+        if (map.current?.getLayer(`route-${locationPair}-arrows`)) {
+          map.current.removeLayer(`route-${locationPair}-arrows`);
+        }
+        if (map.current?.getSource(`route-${locationPair}`)) {
+          map.current.removeSource(`route-${locationPair}`);
+        }
+      });
+
+      setLocations([]);
+      setPendingLocation(null);
+      setRouteInfos({});
+      setRouteGeometries({});
+      setActiveRoutes({});
+      setItineraryTitle("My Trip");
+      setItineraryDateFrom("");
+      setItineraryDateTo("");
+      setItineraryDescription("Add a description...");
+      setIsMenuOpen(false);
+    }
+  };
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false);
+      }
+    };
+
+    if (isMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isMenuOpen]);
+
   return (
-    <div className="h-screen w-screen bg-white flex overflow-hidden">
+    <div className="h-screen w-screen bg-white flex overflow-hidden relative">
+      {/* Toggle Button - Fixed position on the right side */}
+      <button
+        onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+        className={`fixed top-1/2 -translate-y-1/2 z-50 bg-lakbai-green text-white p-3 rounded-l-lg shadow-lg hover:bg-lakbai-green-dark transition-all duration-200 ease-out ${
+          isSidebarCollapsed ? 'right-0' : 'right-[500px]'
+        }`}
+        aria-label={isSidebarCollapsed ? "Open itinerary" : "Close itinerary"}
+      >
+        <svg
+          className={`w-5 h-5 transition-transform duration-200 ${isSidebarCollapsed ? 'rotate-180' : ''}`}
+          fill="none"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="2"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path d="M9 5l7 7-7 7"></path>
+        </svg>
+      </button>
+
       {/* Left Navigation Sidebar */}
       <aside
         className="relative w-[155px] h-full bg-[#f7f7f7] flex-shrink-0"
@@ -436,6 +932,13 @@ export default function Map() {
       <div className="flex-1 relative">
         <div ref={mapContainer} className="w-full h-full" />
 
+        {/* AI Recommendation Panel - Only show on localhost */}
+        <RecommendationPanel
+          recommendations={recommendations}
+          onRecommendationClick={handleRecommendationClick}
+          isLoading={isLoadingRecommendations}
+        />
+
         {/* Location Card appears next to clicked marker */}
         {selectedPOI && cardPosition && (
           <div
@@ -463,30 +966,143 @@ export default function Map() {
       </div>
 
       {/* Right Itinerary Sidebar */}
-      <div className="w-[500px] bg-white flex flex-col shadow-lg border-l border-gray-200">
-        {/* Header */}
+      <div 
+        className={`fixed right-0 top-0 h-full w-[500px] bg-white flex flex-col shadow-lg border-l border-gray-200 transition-transform duration-200 ease-out z-40 ${
+          isSidebarCollapsed ? 'translate-x-full' : 'translate-x-0'
+        }`}
+      >
+        {/* Header - Note-taking Style */}
         <div className="px-8 py-6 border-b border-gray-200">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-2">
-              <span className="text-2xl font-bold text-lakbai-green">Itinerary</span>
-            </div>
-            <button
-              onClick={() => navigate("/")}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <svg
-                className="w-6 h-6 text-gray-600"
-                fill="none"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
+          {/* Title and Menu */}
+          <div className="flex items-start justify-between mb-4">
+            {isEditingTitle ? (
+              <input
+                type="text"
+                value={itineraryTitle}
+                onChange={(e) => setItineraryTitle(e.target.value)}
+                onBlur={handleTitleBlur}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleTitleBlur();
+                  }
+                }}
+                className="text-2xl font-bold text-gray-900 border-2 border-lakbai-green rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-lakbai-green"
+                autoFocus
+              />
+            ) : (
+              <h1 
+                className="text-2xl font-bold text-gray-900 cursor-pointer hover:text-lakbai-green transition-colors"
+                onDoubleClick={handleTitleDoubleClick}
+                title="Double-click to edit"
               >
-                <path d="M6 18L18 6M6 6l12 12"></path>
-              </svg>
-            </button>
+                {itineraryTitle}
+              </h1>
+            )}
+            
+            {/* Triple Dot Menu */}
+            <div className="relative" ref={menuRef}>
+              <button
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                aria-label="Options menu"
+              >
+                <img src={menuIcon} alt="Menu" className="w-6 h-6" />
+              </button>
+              
+              {isMenuOpen && (
+                <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden">
+                  <button
+                    onClick={() => {
+                      // TODO: Save itinerary to user account when account integration is ready
+                      console.log('Save itinerary - Account integration pending');
+                      setIsMenuOpen(false);
+                    }}
+                    className="w-full text-left px-4 py-3 hover:bg-gray-50 text-sm text-gray-700 transition-colors"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={deleteAllItinerary}
+                    className="w-full text-left px-4 py-3 hover:bg-red-50 text-sm text-red-600 transition-colors border-t border-gray-100"
+                  >
+                    Delete All
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
+
+          {/* Date Range - Note-taking Style */}
+          <div className="mb-4">
+            {(itineraryDateFrom || itineraryDateTo) && !isEditingDates ? (
+              <div className="flex items-center gap-2">
+                <svg className="w-4 h-4 text-gray-400" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" stroke="currentColor">
+                  <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                </svg>
+                <span className="text-sm text-gray-700">
+                  {itineraryDateFrom && new Date(itineraryDateFrom + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  {itineraryDateFrom && itineraryDateTo && ' - '}
+                  {itineraryDateTo && new Date(itineraryDateTo + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                </span>
+                <button
+                  onClick={() => setIsEditingDates(true)}
+                  className="ml-auto text-xs text-lakbai-green hover:text-lakbai-green-dark font-medium"
+                >
+                  Edit dates
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 flex-1">
+                  <input
+                    type="date"
+                    value={itineraryDateFrom}
+                    onChange={(e) => setItineraryDateFrom(e.target.value)}
+                    placeholder="Start date"
+                    className="flex-1 px-3 py-2 text-sm border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-lakbai-green focus:border-transparent hover:border-lakbai-green transition-colors"
+                  />
+                </div>
+                <span className="text-gray-400">→</span>
+                <div className="flex items-center gap-2 flex-1">
+                  <input
+                    type="date"
+                    value={itineraryDateTo}
+                    onChange={(e) => setItineraryDateTo(e.target.value)}
+                    placeholder="End date"
+                    className="flex-1 px-3 py-2 text-sm border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-lakbai-green focus:border-transparent hover:border-lakbai-green transition-colors"
+                  />
+                </div>
+                {(itineraryDateFrom || itineraryDateTo) && (
+                  <button
+                    onClick={() => setIsEditingDates(false)}
+                    className="text-xs text-lakbai-green hover:text-lakbai-green-dark font-medium"
+                  >
+                    Done
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Description */}
+          {isEditingDescription ? (
+            <textarea
+              value={itineraryDescription}
+              onChange={(e) => setItineraryDescription(e.target.value)}
+              onBlur={handleDescriptionBlur}
+              className="w-full px-3 py-2 text-sm text-gray-700 border-2 border-lakbai-green rounded-xl focus:outline-none focus:ring-2 focus:ring-lakbai-green resize-none"
+              rows={3}
+              autoFocus
+            />
+          ) : (
+            <p 
+              className="text-sm text-gray-600 italic cursor-pointer hover:text-lakbai-green transition-colors"
+              onDoubleClick={handleDescriptionDoubleClick}
+              title="Double-click to edit"
+            >
+              {itineraryDescription}
+            </p>
+          )}
         </div>
 
         {/* Itinerary Section */}
@@ -732,28 +1348,48 @@ export default function Map() {
                       <div className="flex items-center justify-center gap-4 text-xs text-gray-600">
                           {routeInfos[`${location.id}-${locations[index + 1].id}`] ? (
                             <>
-                              <div className="flex items-center gap-1">
-                                <img src={carIcon} alt="Car" className="w-4 h-4" />
-                                <span>
+                              <button
+                                onClick={() => toggleRouteDisplay(`${location.id}-${locations[index + 1].id}`, 'car')}
+                                className={`flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-all flex-1 ${
+                                  activeRoutes[`${location.id}-${locations[index + 1].id}`] === 'car'
+                                    ? 'bg-blue-100 text-blue-700 font-semibold shadow-md border-2 border-blue-300'
+                                    : 'hover:bg-gray-100 border-2 border-transparent'
+                                }`}
+                              >
+                                <img src={carIcon} alt="Car" className="w-5 h-5" />
+                                <span className="text-xs">
                                   {routeInfos[`${location.id}-${locations[index + 1].id}`].car}
                                 </span>
-                              </div>
-                              <div className="flex items-center gap-1">
-                                <img src={bicycleIcon} alt="Bicycle" className="w-4 h-4" />
-                                <span>
+                                <span className="text-[10px] text-gray-500">Car</span>
+                              </button>
+                              <button
+                                onClick={() => toggleRouteDisplay(`${location.id}-${locations[index + 1].id}`, 'bicycle')}
+                                className={`flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-all flex-1 ${
+                                  activeRoutes[`${location.id}-${locations[index + 1].id}`] === 'bicycle'
+                                    ? 'bg-green-100 text-green-700 font-semibold shadow-md border-2 border-green-300'
+                                    : 'hover:bg-gray-100 border-2 border-transparent'
+                                }`}
+                              >
+                                <img src={bicycleIcon} alt="Bicycle" className="w-5 h-5" />
+                                <span className="text-xs">
                                   {routeInfos[`${location.id}-${locations[index + 1].id}`].bicycle}
                                 </span>
-                              </div>
-                              <div className="flex items-center gap-1">
-                                <img src={walkIcon} alt="Walk" className="w-4 h-4" />
-                                <span>
+                                <span className="text-[10px] text-gray-500">Bike</span>
+                              </button>
+                              <button
+                                onClick={() => toggleRouteDisplay(`${location.id}-${locations[index + 1].id}`, 'foot')}
+                                className={`flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-all flex-1 ${
+                                  activeRoutes[`${location.id}-${locations[index + 1].id}`] === 'foot'
+                                    ? 'bg-amber-100 text-amber-700 font-semibold shadow-md border-2 border-amber-300'
+                                    : 'hover:bg-gray-100 border-2 border-transparent'
+                                }`}
+                              >
+                                <img src={walkIcon} alt="Walk" className="w-5 h-5" />
+                                <span className="text-xs">
                                   {routeInfos[`${location.id}-${locations[index + 1].id}`].foot}
                                 </span>
-                              </div>
-                              <span className="text-gray-400">•</span>
-                              <span className="font-medium">
-                                {routeInfos[`${location.id}-${locations[index + 1].id}`].distance}
-                              </span>
+                                <span className="text-[10px] text-gray-500">Walk</span>
+                              </button>
                             </>
                           ) : (
                             <span className="text-gray-400">Calculating route...</span>

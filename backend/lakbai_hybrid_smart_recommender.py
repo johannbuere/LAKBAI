@@ -1,5 +1,5 @@
 """
-Hybrid Smart Route Recommender
+Lakbai Hybrid Smart Route Recommender
 Combines BERT intelligence with fast pre-computed optimizations
 """
 
@@ -376,91 +376,221 @@ class HybridSmartRecommender:
             'long': poi['long']
         }
     
-    def recommend_next_pois(self, current_route, num_recommendations=3):
+    def _get_popular_starting_pois(self, num_recommendations=10):
+        """Get popular POIs as starting recommendations"""
+        recommendations = []
+        
+        # Get most visited POIs from user visits data
+        if hasattr(self, 'user_visits') and self.user_visits is not None:
+            poi_visit_counts = self.user_visits.groupby('poiID').size().reset_index(name='visit_count')
+            poi_visit_counts = poi_visit_counts.sort_values('visit_count', ascending=False)
+            
+            for _, row in poi_visit_counts.head(num_recommendations * 2).iterrows():
+                poi_id = row['poiID']
+                poi_info = self.get_poi_info(poi_id)
+                if poi_info:
+                    # Normalize score between 0-1
+                    score = row['visit_count'] / poi_visit_counts['visit_count'].max()
+                    recommendations.append({
+                        'poi_id': poi_id,
+                        'name': poi_info['name'],
+                        'theme': poi_info['theme'],
+                        'score': score,
+                        'reason': f'Popular {poi_info["theme"]} attraction - {row["visit_count"]} visits!',
+                        'sources': ['popular_start']
+                    })
+        
+        # Fallback: use POIs from starting_pois if available
+        if len(recommendations) < num_recommendations and hasattr(self, 'popular_routes_from_data'):
+            for theme, pois_data in self.popular_routes_from_data.get('starting_pois', {}).items():
+                for poi_data in pois_data[:3]:
+                    poi_id = poi_data['poi']
+                    if not any(r['poi_id'] == poi_id for r in recommendations):
+                        poi_info = self.get_poi_info(poi_id)
+                        if poi_info:
+                            recommendations.append({
+                                'poi_id': poi_id,
+                                'name': poi_info['name'],
+                                'theme': poi_info['theme'],
+                                'score': poi_data.get('score', 0.5),
+                                'reason': f'Popular {theme} starting point',
+                                'sources': ['popular_start']
+                            })
+        
+        # Sort by score and return top N
+        recommendations.sort(key=lambda x: x['score'], reverse=True)
+        print(f"📍 Returning {len(recommendations[:num_recommendations])} popular starting POIs")
+        return recommendations[:num_recommendations]
+    
+    def recommend_next_pois(self, current_route, num_recommendations=10):
         """Smart recommendations using both BERT and real data"""
         start_time = time.time()
         recommendations = []
+        scored_recommendations = {}  # Use dict to track and merge scores
         
-        if not current_route:
-            # Use real data for starting recommendations
-            print("🎯 Using real user data for starting recommendations")
-            
-            for theme, pois_data in self.popular_routes_from_data['starting_pois'].items():
-                for poi_data in pois_data[:2]:  # Top 2 per theme
-                    poi_info = self.get_poi_info(poi_data['poi'])
+        if not current_route or len(current_route) == 0:
+            print("📍 Empty route - returning popular starting POIs")
+            return self._get_popular_starting_pois(num_recommendations)
+        
+        # Get last POI for context
+        last_poi = current_route[-1]
+        last_poi_info = self.get_poi_info(last_poi)
+        current_theme = last_poi_info['theme'] if last_poi_info else None
+        
+        print(f"🎯 Generating recommendations after POI {last_poi} ({last_poi_info['name'] if last_poi_info else 'unknown'})")
+        
+        # Strategy 1: Real user transition data (HIGHEST priority)
+        if last_poi in self.popular_routes_from_data['transitions']:
+            print("📊 Using real user transition data")
+            for transition in self.popular_routes_from_data['transitions'][last_poi][:8]:  # Increased from 5 to 8
+                if transition['poi'] not in current_route:
+                    poi_info = self.get_poi_info(transition['poi'])
                     if poi_info:
-                        recommendations.append({
-                            'poi_id': poi_data['poi'],
-                            'name': poi_info['name'],
-                            'theme': poi_info['theme'],
-                            'score': poi_data['score'],
-                            'reason': f'Popular starting point (used by {poi_data["count"]} users)'
-                        })
-        else:
-            # Try cached BERT predictions first
-            route_key = tuple(current_route)
-            if route_key in self.bert_predictions_cache:
-                print("⚡ Using cached BERT predictions")
-                bert_recs = self.bert_predictions_cache[route_key]
-                for rec in bert_recs:
-                    if rec['poi_id'] not in current_route:
-                        recommendations.append({
-                            'poi_id': rec['poi_id'],
-                            'name': rec['name'],
-                            'theme': rec['theme'],
-                            'score': rec['score'],
-                            'reason': 'BERT AI prediction (cached)'
-                        })
-            
-            # Use real transition data
-            last_poi = current_route[-1]
-            if last_poi in self.popular_routes_from_data['transitions']:
-                print("📊 Using real user transition data")
-                for transition in self.popular_routes_from_data['transitions'][last_poi]:
-                    if transition['poi'] not in current_route:
-                        poi_info = self.get_poi_info(transition['poi'])
-                        if poi_info:
-                            recommendations.append({
-                                'poi_id': transition['poi'],
+                        poi_id = transition['poi']
+                        score = transition['score'] * 2.0  # INCREASED from 1.5 to 2.0 - highest boost
+                        
+                        if poi_id not in scored_recommendations:
+                            scored_recommendations[poi_id] = {
+                                'poi_id': poi_id,
                                 'name': poi_info['name'],
                                 'theme': poi_info['theme'],
-                                'score': transition['score'],
-                                'reason': f'Popular transition ({transition["count"]} users took this path)'
+                                'score': score,
+                                'reason': f'Popular next stop - {transition["count"]} travelers chose this',
+                                'sources': ['real_transitions']
+                            }
+                        else:
+                            # Merge scores if POI recommended by multiple sources
+                            scored_recommendations[poi_id]['score'] += score * 0.5
+                            scored_recommendations[poi_id]['sources'].append('real_transitions')
+        
+        # Strategy 2: Theme continuity (same theme as current) - REDUCED PRIORITY
+        # Only add theme-based recommendations as a minor boost to other sources
+        if current_theme and current_theme in self.theme_groups:
+            print(f"🎨 Adding minor theme continuity boost for {current_theme}")
+            theme_pois = self.theme_groups[current_theme]
+            for poi_id in theme_pois[:5]:  # Reduced from 10 to 5
+                if poi_id not in current_route:
+                    poi_info = self.get_poi_info(poi_id)
+                    if poi_info:
+                        # Calculate distance score (closer is better)
+                        dist_key = (last_poi, poi_id)
+                        distance = self.distance_matrix.get(dist_key, 999)
+                        distance_score = 1.0 / (1.0 + distance * 10)  # Normalize distance
+                        
+                        score = 0.15 * distance_score  # FURTHER REDUCED from 0.3 to 0.15
+                        
+                        # Only boost existing recommendations, don't create new theme-only ones
+                        if poi_id in scored_recommendations:
+                            scored_recommendations[poi_id]['score'] += score * 0.1
+                            if 'theme_match' not in scored_recommendations[poi_id]['sources']:
+                                scored_recommendations[poi_id]['sources'].append('theme_match')
+        
+        # Strategy 3: BERT predictions (HIGH priority)
+        route_key = tuple(current_route)
+        if route_key in self.bert_predictions_cache:
+            print("⚡ Using cached BERT predictions")
+            bert_recs = self.bert_predictions_cache[route_key][:8]  # Increased from 5 to 8
+            for rec in bert_recs:
+                if rec['poi_id'] not in current_route:
+                    poi_id = rec['poi_id']
+                    score = rec['score'] * 1.8  # INCREASED from 1.2 to 1.8 - strong boost
+                    
+                    if poi_id not in scored_recommendations:
+                        scored_recommendations[poi_id] = {
+                            'poi_id': poi_id,
+                            'name': rec['name'],
+                            'theme': rec['theme'],
+                            'score': score,
+                            'reason': 'AI-powered prediction based on your route',
+                            'sources': ['bert_cached']
+                        }
+                    else:
+                        scored_recommendations[poi_id]['score'] += score * 0.4
+                        scored_recommendations[poi_id]['sources'].append('bert_cached')
+        
+        # Strategy 4: Add nearby POIs from different themes for variety
+        if len(scored_recommendations) < num_recommendations:
+            print("🌟 Adding nearby POIs for more variety")
+            # Get all POIs sorted by distance from last location
+            nearby_pois = []
+            for poi_id in range(1, len(self.pois) + 1):
+                if poi_id not in current_route and poi_id not in scored_recommendations:
+                    dist_key = (last_poi, poi_id)
+                    distance = self.distance_matrix.get(dist_key, 999)
+                    if distance < 0.5:  # Within reasonable distance
+                        poi_info = self.get_poi_info(poi_id)
+                        if poi_info:
+                            nearby_pois.append({
+                                'poi_id': poi_id,
+                                'distance': distance,
+                                'theme': poi_info['theme']
                             })
             
-            # If we have few recommendations, try real-time BERT (slower but smarter)
-            if len(recommendations) < num_recommendations and self.bert_model:
-                print("🤖 Getting real-time BERT predictions...")
-                try:
-                    bert_predictions = self.get_bert_predictions_for_route(current_route)
-                    for pred in bert_predictions:
-                        if pred['poi_id'] not in current_route:
-                            recommendations.append({
-                                'poi_id': pred['poi_id'],
+            # Sort by distance and add diverse themes
+            nearby_pois.sort(key=lambda x: x['distance'])
+            themes_added = set()
+            for poi_data in nearby_pois:
+                if len(scored_recommendations) >= num_recommendations:
+                    break
+                poi_id = poi_data['poi_id']
+                poi_info = self.get_poi_info(poi_id)
+                if poi_info:
+                    # Prefer diverse themes
+                    theme_bonus = 0.2 if poi_info['theme'] not in themes_added else 0
+                    distance_score = 1.0 / (1.0 + poi_data['distance'] * 5)
+                    score = distance_score * 0.5 + theme_bonus
+                    
+                    scored_recommendations[poi_id] = {
+                        'poi_id': poi_id,
+                        'name': poi_info['name'],
+                        'theme': poi_info['theme'],
+                        'score': score,
+                        'reason': f'Nearby {poi_info["theme"]} attraction worth visiting',
+                        'sources': ['nearby_diverse']
+                    }
+                    themes_added.add(poi_info['theme'])
+        
+        # Strategy 5: Real-time BERT if we still need more (expensive, use sparingly)
+        if len(scored_recommendations) < num_recommendations and self.bert_model:
+            print("🤖 Getting real-time BERT predictions...")
+            try:
+                bert_predictions = self.get_bert_predictions_for_route(current_route)
+                for pred in bert_predictions[:3]:
+                    poi_id = pred['poi_id']
+                    if poi_id not in current_route:
+                        if poi_id not in scored_recommendations:
+                            scored_recommendations[poi_id] = {
+                                'poi_id': poi_id,
                                 'name': pred['name'],
                                 'theme': pred['theme'],
-                                'score': pred['score'],
-                                'reason': 'BERT AI prediction (real-time)'
-                            })
-                except Exception as e:
-                    print(f"⚠️  Real-time BERT failed: {e}")
+                                'score': pred['score'] * 1.3,
+                                'reason': 'Advanced AI recommendation for your route',
+                                'sources': ['bert_realtime']
+                            }
+                        else:
+                            scored_recommendations[poi_id]['score'] += pred['score'] * 0.5
+                            scored_recommendations[poi_id]['sources'].append('bert_realtime')
+            except Exception as e:
+                print(f"⚠️  Real-time BERT failed: {e}")
         
-        # Remove duplicates and sort by score
-        seen_pois = set()
-        unique_recommendations = []
+        # Sort by combined score and return top recommendations
+        recommendations = sorted(
+            scored_recommendations.values(), 
+            key=lambda x: x['score'], 
+            reverse=True
+        )[:num_recommendations]
         
-        for rec in sorted(recommendations, key=lambda x: x['score'], reverse=True):
-            if rec['poi_id'] not in seen_pois:
-                unique_recommendations.append(rec)
-                seen_pois.add(rec['poi_id'])
-                
-                if len(unique_recommendations) >= num_recommendations:
-                    break
+        # Clean up reason text based on multiple sources
+        for rec in recommendations:
+            if len(rec['sources']) > 1:
+                rec['reason'] = f"Highly recommended - {len(rec['sources'])} factors match your preferences"
+            # Remove internal sources field
+            del rec['sources']
         
         elapsed_time = time.time() - start_time
-        print(f"⚡ Smart recommendations generated in {elapsed_time*1000:.1f}ms")
+        print(f"⚡ Generated {len(recommendations)} recommendations in {elapsed_time*1000:.1f}ms")
         
-        return unique_recommendations[:num_recommendations]
+        return recommendations
     
     def get_recommendation_stats(self):
         """Get statistics about the recommendation system"""

@@ -2,6 +2,11 @@
 pandas>=1.5.0
 numpy>=1.21.0
 
+# Web framework for routing API
+flask>=2.3.0
+flask-cors>=4.0.0
+requests>=2.31.0
+
 # Machine learning and deep learning
 torch>=1.13.0
 transformers>=4.20.0

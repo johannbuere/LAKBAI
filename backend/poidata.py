@@ -154,9 +154,9 @@ def load_files(city, fold=1, subset=1, DEBUG=0):
   all_seqid_set = userVisits['seqID'].unique()
   finish_time=dict()
 
-  ### bootstrapping
-  from Bootstrap import inferPOITimes,infer2POIsTimes
-  boottable=userVisits.copy()
+  ### bootstrapping  (commented out - not needed for basic recommendations)
+  # from Bootstrap import inferPOITimes,infer2POIsTimes
+  # boottable=userVisits.copy()
 
   ### shrink userVisits to only 3 or more
   for seqid in all_seqid_set:
@@ -175,13 +175,12 @@ def load_files(city, fold=1, subset=1, DEBUG=0):
   lastindex=int(n * 80 / 100)
   max_training_time = max( all_finish_times[ 0 : lastindex ] )
 
-  ### bootstrapping
-  #from Bootstrap import inferPOITimes,infer2POIsTimes
-  #boottable=userVisits.copy()
-  boottable=boottable[ boottable['dateTaken'] <= max_training_time]
-  #print(boottable)
-  boot_times = inferPOITimes(pois,boottable)
-  setting['bootstrap_duration'] = boot_times
+  ### bootstrapping (commented out - not needed for basic recommendations)
+  # boottable=userVisits.copy()
+  # boottable=boottable[ boottable['dateTaken'] <= max_training_time]
+  # boot_times = inferPOITimes(pois,boottable)
+  # setting['bootstrap_duration'] = boot_times
+  setting['bootstrap_duration'] = {}  # Empty dict as fallback
 
   drop_seqids,keep_seqids=[],[]
 

@@ -11,7 +11,7 @@ from config import setting
 from common import f1_scores, LINE, bertlog
 
 from poidata import (load_files, load_dataset, getThemes, getPOIFullNames, getPOIThemes, poi_name_dict)
-from Bootstrap import inferPOITimes2,get_distance_matrix
+# from Bootstrap import inferPOITimes2,get_distance_matrix  # Not needed for basic recommendations
 from simpletransformers.classification import (
     ClassificationModel, ClassificationArgs,
     MultiLabelClassificationModel, MultiLabelClassificationArgs)
