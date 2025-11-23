@@ -50,8 +50,13 @@ class HybridSmartRecommender:
             self.theme2num, self.num2theme, self.poi2theme = get_themes_ids(self.pois)
             print(f"✅ Loaded {len(self.pois)} POIs and user visit data")
             
-            # Try to load your trained BERT model
-            self.load_bert_model()
+            # Try to load your trained BERT model (gracefully handle failure)
+            try:
+                self.load_bert_model()
+            except Exception as bert_error:
+                print(f"⚠️  BERT model failed to load: {bert_error}")
+                print("📊 Continuing with data-driven recommendations only...")
+                self.bert_model = None
             
             # Build smart cache
             if not self.load_smart_cache():
@@ -70,6 +75,7 @@ class HybridSmartRecommender:
         try:
             model_path = "output_Legazpi_e1_bert"
             if os.path.exists(model_path):
+                print("🤖 Loading BERT model (this may take 10-30 seconds)...")
                 from simpletransformers.classification import ClassificationModel
                 import torch
                 
@@ -82,11 +88,14 @@ class HybridSmartRecommender:
                 print("✅ BERT model loaded successfully")
                 return True
             else:
-                print("⚠️  BERT model not found - using fallback methods")
+                print("⚠️  BERT model not found - using data-driven recommendations only")
+                self.bert_model = None
                 return False
                 
         except Exception as e:
             print(f"⚠️  BERT model load failed: {e}")
+            print("💡 This is often due to Python version incompatibility (Python 3.11 or earlier recommended)")
+            print("📊 Continuing with data-driven recommendations (still very accurate!)...")
             self.bert_model = None
             return False
     
@@ -381,24 +390,32 @@ class HybridSmartRecommender:
         recommendations = []
         
         # Get most visited POIs from user visits data
-        if hasattr(self, 'user_visits') and self.user_visits is not None:
-            poi_visit_counts = self.user_visits.groupby('poiID').size().reset_index(name='visit_count')
-            poi_visit_counts = poi_visit_counts.sort_values('visit_count', ascending=False)
-            
-            for _, row in poi_visit_counts.head(num_recommendations * 2).iterrows():
-                poi_id = row['poiID']
-                poi_info = self.get_poi_info(poi_id)
-                if poi_info:
-                    # Normalize score between 0-1
-                    score = row['visit_count'] / poi_visit_counts['visit_count'].max()
-                    recommendations.append({
-                        'poi_id': poi_id,
-                        'name': poi_info['name'],
-                        'theme': poi_info['theme'],
-                        'score': score,
-                        'reason': f'Popular {poi_info["theme"]} attraction - {row["visit_count"]} visits!',
-                        'sources': ['popular_start']
-                    })
+        if hasattr(self, 'user_visits') and self.user_visits is not None and not self.user_visits.empty:
+            try:
+                poi_visit_counts = self.user_visits.groupby('poiID').size().reset_index(name='visit_count')
+                poi_visit_counts = poi_visit_counts.sort_values('visit_count', ascending=False)
+                
+                max_visits = poi_visit_counts['visit_count'].max()
+                if max_visits > 0:
+                    for _, row in poi_visit_counts.head(num_recommendations * 2).iterrows():
+                        poi_id = int(row['poiID'])  # Convert to int
+                        poi_info = self.get_poi_info(poi_id)
+                        if poi_info:
+                            # Normalize score between 0-1
+                            score = float(row['visit_count']) / float(max_visits)
+                            recommendations.append({
+                                'poi_id': poi_id,
+                                'name': poi_info['name'],
+                                'theme': poi_info['theme'],
+                                'score': score,
+                                'reason': f'Popular {poi_info["theme"]} attraction - {int(row["visit_count"])} visits!',
+                                'sources': ['popular_start']
+                            })
+                        
+                        if len(recommendations) >= num_recommendations:
+                            break
+            except Exception as e:
+                print(f"⚠️  Error getting popular POIs from user visits: {e}")
         
         # Fallback: use POIs from starting_pois if available
         if len(recommendations) < num_recommendations and hasattr(self, 'popular_routes_from_data'):
@@ -416,9 +433,34 @@ class HybridSmartRecommender:
                                 'reason': f'Popular {theme} starting point',
                                 'sources': ['popular_start']
                             })
+                    
+                    if len(recommendations) >= num_recommendations:
+                        break
+                if len(recommendations) >= num_recommendations:
+                    break
+        
+        # Last resort: Just return first N POIs sorted by ID
+        if len(recommendations) == 0:
+            print("⚠️  No user visit data available, returning first POIs")
+            for _, poi_row in self.pois.head(num_recommendations).iterrows():
+                poi_id = int(poi_row['poiID'])
+                recommendations.append({
+                    'poi_id': poi_id,
+                    'name': poi_row['poiName'],
+                    'theme': poi_row['theme'],
+                    'score': 0.5,
+                    'reason': f'Discover this {poi_row["theme"]} attraction',
+                    'sources': ['fallback']
+                })
         
         # Sort by score and return top N
         recommendations.sort(key=lambda x: x['score'], reverse=True)
+        
+        # Remove sources field before returning
+        for rec in recommendations:
+            if 'sources' in rec:
+                del rec['sources']
+        
         print(f"📍 Returning {len(recommendations[:num_recommendations])} popular starting POIs")
         return recommendations[:num_recommendations]
     

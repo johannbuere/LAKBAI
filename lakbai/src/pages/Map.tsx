@@ -88,11 +88,6 @@ export default function Map() {
   // Fetch AI recommendations when locations change
   useEffect(() => {
     const fetchRecommendations = async () => {
-      if (locations.length === 0) {
-        setRecommendations([]);
-        return;
-      }
-
       console.log('🤖 Fetching recommendations for route:', locations.map(loc => loc.poiID));
       setIsLoadingRecommendations(true);
       try {
@@ -656,6 +651,18 @@ export default function Map() {
       setTimeout(() => {
         calculateRoute(prevLocation, nextLocation);
       }, 100);
+    }
+  };
+
+  // Jump to location on the map
+  const jumpToLocation = (location: Location) => {
+    if (map.current) {
+      map.current.flyTo({
+        center: location.coordinates,
+        zoom: 16,
+        duration: 1000,
+        essential: true,
+      });
     }
   };
 
@@ -1313,6 +1320,24 @@ export default function Map() {
                         </div>
                         
                         <div className="flex flex-col gap-2">
+                          <button
+                            onClick={() => jumpToLocation(location)}
+                            className="p-1.5 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Jump to location on map"
+                          >
+                            <svg
+                              className="w-5 h-5 text-blue-500"
+                              fill="none"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="2"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                              <path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            </svg>
+                          </button>
                           <button
                             onClick={() => toggleEditLocation(location.id)}
                             className="p-1.5 hover:bg-lakbai-green-bg rounded-lg transition-colors"
