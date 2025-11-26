@@ -1,5 +1,32 @@
+# Python virtual environments
+venv/
+venv_bert/
+env/
+ENV/
+.venv/
+*.pyc
+__pycache__/
+
 # Ignore large AI model output directory
 backend/output_Legazpi_e1_bert/
 
 # Ignore OSRM Docker data files
 backend/osrm-docker/
+
+# Node modules
+node_modules/
+
+# Environment variables
+.env
+.env.local
+
+# Build outputs
+dist/
+build/
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
