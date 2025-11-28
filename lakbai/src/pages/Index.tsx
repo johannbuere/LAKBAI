@@ -1,11 +1,56 @@
 import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useAuth } from "../lib/AuthContext";
+import AuthModal from "../components/AuthModal";
 import lakbaiIcon from "../assets/lakbai.svg";
 
 export default function Index() {
   const navigate = useNavigate();
+  const { user, signOut } = useAuth();
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authMode, setAuthMode] = useState<"signin" | "signup">("signin");
+
+  // Redirect authenticated users to home
+  useEffect(() => {
+    if (user) {
+      navigate("/home");
+    }
+  }, [user, navigate]);
+
+  const handleAuthSuccess = (userData: any) => {
+    // Auth context will handle the user state
+    navigate("/home");
+  };
+
+  const handleSignOut = () => {
+    signOut();
+  };
+
+  const openSignIn = () => {
+    setAuthMode("signin");
+    setAuthModalOpen(true);
+  };
+
+  const openSignUp = () => {
+    setAuthMode("signup");
+    setAuthModalOpen(true);
+  };
+
+  const switchAuthMode = () => {
+    setAuthMode(authMode === "signin" ? "signup" : "signin");
+  };
 
   return (
     <div className="min-h-screen bg-white">
+      {/* Auth Modal */}
+      <AuthModal
+        isOpen={authModalOpen}
+        mode={authMode}
+        onClose={() => setAuthModalOpen(false)}
+        onSwitchMode={switchAuthMode}
+        onSuccess={handleAuthSuccess}
+      />
+
       {/* Header */}
       <header className="px-6 py-6">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
@@ -35,12 +80,37 @@ export default function Index() {
 
           {/* Auth Buttons */}
           <div className="flex items-center gap-4">
-            <button className="text-lakbai-gray-text font-medium hover:text-lakbai-green transition-colors">
-              Sign In
-            </button>
-            <button className="px-6 py-2.5 bg-lakbai-green text-white font-semibold rounded-full hover:bg-lakbai-green-dark transition-colors">
-              Sign Up
-            </button>
+            {user ? (
+              <>
+                <button
+                  onClick={() => navigate("/home")}
+                  className="text-lakbai-gray-text font-medium hover:text-lakbai-green transition-colors"
+                >
+                  Dashboard
+                </button>
+                <button
+                  onClick={handleSignOut}
+                  className="px-6 py-2.5 bg-gray-200 text-gray-700 font-semibold rounded-full hover:bg-gray-300 transition-colors"
+                >
+                  Sign Out
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={openSignIn}
+                  className="text-lakbai-gray-text font-medium hover:text-lakbai-green transition-colors"
+                >
+                  Sign In
+                </button>
+                <button
+                  onClick={openSignUp}
+                  className="px-6 py-2.5 bg-lakbai-green text-white font-semibold rounded-full hover:bg-lakbai-green-dark transition-colors"
+                >
+                  Sign Up
+                </button>
+              </>
+            )}
           </div>
         </div>
       </header>
@@ -67,10 +137,10 @@ export default function Index() {
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <button
-              onClick={() => navigate("/map")}
+              onClick={() => user ? navigate("/map") : openSignUp()}
               className="px-8 py-4 bg-lakbai-lime text-gray-900 text-lg font-semibold rounded-full hover:bg-lakbai-green-light transition-all transform hover:scale-105 shadow-lg flex items-center gap-2"
             >
-              Test our demo
+              {user ? "Go to Map" : "Test our demo"}
               <svg
                 className="w-5 h-5"
                 fill="none"
@@ -84,7 +154,7 @@ export default function Index() {
               </svg>
             </button>
             <div className="px-4 py-2 bg-lakbai-green-dark/10 text-lakbai-green-dark text-sm font-medium rounded-full">
-              version 1.2
+              v0.1.0
             </div>
           </div>
         </div>
@@ -230,10 +300,10 @@ export default function Index() {
             Join thousands of travelers who trust Lakbai for their adventures.
           </p>
           <button
-            onClick={() => navigate("/map")}
+            onClick={() => user ? navigate("/map") : openSignUp()}
             className="px-10 py-5 bg-white text-lakbai-green-dark text-xl font-semibold rounded-full hover:bg-lakbai-lime transition-all transform hover:scale-105 shadow-2xl"
           >
-            Plan Your Trip Now
+            {user ? "Plan Your Trip Now" : "Get Started Free"}
           </button>
         </div>
       </section>

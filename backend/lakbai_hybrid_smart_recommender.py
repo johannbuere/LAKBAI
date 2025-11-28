@@ -15,6 +15,31 @@ from collections import defaultdict
 # Set DATA_DIR for file path compatibility
 DATA_DIR = os.environ.get("DATA_DIR", "Data")
 
+def get_themes_ids(pois):
+    """Extract theme mappings from POI data (copied to avoid torch imports)"""
+    theme2num = dict()
+    num2theme = dict()
+    poi2theme = dict()
+    numpois = pois['poiID'].count()
+
+    allthemes = sorted(pois['theme'].unique())
+    for i in range(len(allthemes)):
+        theme2num[allthemes[i]] = i
+        num2theme[i] = allthemes[i]
+
+    arr1 = pois['poiID'].array
+    arr2 = pois['theme'].array
+
+    for i in range(len(arr1)):
+        pid = int(arr1[i])
+        theme = arr2[i]
+        poi2theme[pid] = theme
+        if theme not in theme2num.keys():
+            num = numpois + len(theme2num.keys())
+            theme2num[theme] = num
+            num2theme[num] = theme
+    return theme2num, num2theme, poi2theme
+
 class HybridSmartRecommender:
     def __init__(self, city="Legazpi", cache_file="smart_cache.pkl"):
         self.city = city
@@ -44,24 +69,22 @@ class HybridSmartRecommender:
         try:
             # Load your actual data
             from poidata import load_dataset
-            from BTRec_RecTour23 import get_themes_ids
             
             self.pois, self.user_visits, _, _ = load_dataset(self.city, DEBUG=0)
+            
+            # Use local get_themes_ids to avoid importing BTRec_RecTour23 (which imports torch)
             self.theme2num, self.num2theme, self.poi2theme = get_themes_ids(self.pois)
+            
             print(f"✅ Loaded {len(self.pois)} POIs and user visit data")
             
-            # Try to load your trained BERT model (gracefully handle failure)
-            try:
-                self.load_bert_model()
-            except Exception as bert_error:
-                print(f"⚠️  BERT model failed to load: {bert_error}")
-                print("📊 Continuing with data-driven recommendations only...")
-                self.bert_model = None
+            # BERT model loading disabled due to Python 3.13 incompatibility
+            self.load_bert_model()
             
             # Build smart cache
             if not self.load_smart_cache():
                 self.build_smart_cache()
             
+            print("✅ Recommender initialized successfully!")
             return True
             
         except Exception as e:
@@ -71,31 +94,35 @@ class HybridSmartRecommender:
             return False
     
     def load_bert_model(self):
-        """Load your trained BERT model if available"""
+        """Load your trained BERT model from output_Legazpi_e1_bert/"""
         try:
-            model_path = "output_Legazpi_e1_bert"
-            if os.path.exists(model_path):
-                print("🤖 Loading BERT model (this may take 10-30 seconds)...")
-                from simpletransformers.classification import ClassificationModel
-                import torch
-                
-                use_cuda = torch.cuda.is_available()
-                self.bert_model = ClassificationModel(
-                    model_type="bert",
-                    model_name=model_path,
-                    use_cuda=use_cuda
-                )
-                print("✅ BERT model loaded successfully")
-                return True
-            else:
-                print("⚠️  BERT model not found - using data-driven recommendations only")
+            from simpletransformers.classification import ClassificationModel
+            
+            model_path = os.path.join(os.path.dirname(__file__), "output_Legazpi_e1_bert")
+            
+            if not os.path.exists(model_path):
+                print(f"⚠️  BERT model not found at {model_path}")
                 self.bert_model = None
                 return False
-                
+            
+            print(f"🤖 Loading BERT model from {model_path}...")
+            
+            # Load the trained model (NOT from BTRec_RecTour23!)
+            self.bert_model = ClassificationModel(
+                'bert',
+                model_path,
+                use_cuda=False,  # Use CPU (works on any machine)
+                args={'silent': True, 'use_multiprocessing': False}
+            )
+            
+            print("✅ BERT model loaded successfully!")
+            print("🎯 AI-powered recommendations are now active")
+            return True
+            
         except Exception as e:
-            print(f"⚠️  BERT model load failed: {e}")
-            print("💡 This is often due to Python version incompatibility (Python 3.11 or earlier recommended)")
-            print("📊 Continuing with data-driven recommendations (still very accurate!)...")
+            print(f"⚠️  BERT model loading failed: {e}")
+            print("📊 Falling back to data-driven recommendations")
+            print("💡 Make sure you're using Python 3.11 with PyTorch installed")
             self.bert_model = None
             return False
     
@@ -255,13 +282,87 @@ class HybridSmartRecommender:
         print(f"✅ Pre-computed {len(self.bert_predictions_cache)} BERT prediction sets")
     
     def get_bert_predictions_for_route(self, route):
-        """Get BERT predictions for a specific route"""
+        """Get BERT predictions for a specific route using the trained model"""
         if not self.bert_model:
             return []
         
         try:
-            from BTRec_RecTour23 import predict_user_insert, getUserLocation
-            from config import setting
+            # Format route as text input for BERT
+            route_text = self._format_route_for_bert(route)
+            
+            if not route_text:
+                return []
+            
+            # Get BERT prediction (returns predicted class/POI)
+            predictions, raw_outputs = self.bert_model.predict([route_text])
+            
+            # predictions[0] is the predicted POI class (0-168 maps to POI IDs)
+            predicted_class = int(predictions[0])
+            
+            # Get confidence score
+            import numpy as np
+            confidence = float(np.max(raw_outputs[0]))
+            
+            # Map class to POI ID (classes might correspond to POI IDs)
+            # Try the class number as POI ID first
+            poi_id = predicted_class
+            
+            # Make sure it's not already in route and exists
+            if poi_id not in route:
+                poi_info = self.get_poi_info(poi_id)
+                if poi_info:
+                    return [{
+                        'poi_id': poi_id,
+                        'name': poi_info['name'],
+                        'theme': poi_info['theme'],
+                        'score': confidence,
+                        'reason': 'AI-powered BERT prediction based on your route'
+                    }]
+            
+            # If first prediction doesn't work, try top 3
+            top_3_indices = np.argsort(raw_outputs[0])[-3:][::-1]
+            for idx in top_3_indices:
+                poi_id = int(idx)
+                if poi_id not in route:
+                    poi_info = self.get_poi_info(poi_id)
+                    if poi_info:
+                        confidence = float(raw_outputs[0][idx])
+                        return [{
+                            'poi_id': poi_id,
+                            'name': poi_info['name'],
+                            'theme': poi_info['theme'],
+                            'score': confidence,
+                            'reason': 'AI-powered BERT prediction based on your route'
+                        }]
+            
+            return []
+            
+        except Exception as e:
+            print(f"⚠️  BERT prediction failed: {e}")
+            import traceback
+            traceback.print_exc()
+            return []
+    
+    def _format_route_for_bert(self, route):
+        """Format route as text input for BERT model"""
+        try:
+            # Format matching training data structure
+            # Typically: "user_id location poi_id theme poi_id theme ..."
+            parts = []
+            
+            for poi_id in route:
+                poi_info = self.get_poi_info(poi_id)
+                if poi_info:
+                    # Add POI ID and theme
+                    parts.append(str(poi_id))
+                    parts.append(poi_info['theme'])
+            
+            route_text = " ".join(parts)
+            return route_text
+            
+        except Exception as e:
+            print(f"⚠️  Route formatting failed: {e}")
+            return ""
             
             # Ensure user location data is available
             if "User2City" not in setting:

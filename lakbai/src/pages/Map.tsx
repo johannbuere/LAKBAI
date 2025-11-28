@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import lakbaiIcon from "../assets/lakbai.svg";
@@ -17,6 +17,8 @@ import LocationCard from "../components/LocationCard";
 import { getRoute, getRoutesBatch } from "../lib/routingService";
 import RecommendationPanel from "../components/RecommendationPanel";
 import { getRecommendations, type Recommendation } from "../lib/recommendationService";
+import { supabase } from "../lib/supabase";
+import { useAuth } from "../lib/AuthContext";
 
 interface Location {
   id: string;
@@ -47,6 +49,7 @@ interface RouteGeometry {
 
 export default function Map() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
@@ -79,11 +82,83 @@ export default function Map() {
   const [isEditingDates, setIsEditingDates] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  
+  // Saved itineraries state
+  const [savedItineraries, setSavedItineraries] = useState<any[]>([]);
+  const [currentItineraryId, setCurrentItineraryId] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [userProfilePicture, setUserProfilePicture] = useState<string | null>(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const { user } = useAuth();
 
   // Load POI data from CSV
   useEffect(() => {
     loadPOIData().then(setPOIData);
   }, []);
+
+  // Load user profile picture from Supabase
+  useEffect(() => {
+    const loadProfilePicture = async () => {
+      if (!user) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('profile_picture_url')
+          .eq('id', user.id)
+          .single();
+        
+        if (error) {
+          console.error('Error loading profile picture:', error);
+          return;
+        }
+        
+        if (data?.profile_picture_url) {
+          setUserProfilePicture(data.profile_picture_url);
+        }
+      } catch (error) {
+        console.error('Error loading profile picture:', error);
+      }
+    };
+    
+    loadProfilePicture();
+  }, [user]);
+
+  // Load saved itineraries from Supabase
+  useEffect(() => {
+    const loadSavedItineraries = async () => {
+      if (!user) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('itineraries')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('updated_at', { ascending: false });
+        
+        if (error) {
+          console.error('Error loading itineraries:', error);
+          return;
+        }
+        
+        if (data) {
+          setSavedItineraries(data);
+        }
+      } catch (error) {
+        console.error('Error loading itineraries:', error);
+      }
+    };
+    
+    loadSavedItineraries();
+  }, [user]);
+
+  // Load itinerary from URL parameter if present
+  useEffect(() => {
+    const itineraryId = searchParams.get('itinerary');
+    if (itineraryId && poiData.length > 0) {
+      loadItinerary(itineraryId);
+    }
+  }, [searchParams, poiData]);
 
   // Fetch AI recommendations when locations change
   useEffect(() => {
@@ -110,6 +185,14 @@ export default function Map() {
   useEffect(() => {
     if (map.current || !mapContainer.current || poiData.length === 0) return;
 
+    // Legazpi City bounds (from legazpi.poly - official city boundary)
+    const legazpiBounds: [number, number, number, number] = [
+      123.6861783, // West (min longitude)
+      12.9873985,  // South (min latitude)
+      123.8639699, // East (max longitude)
+      13.2555075   // North (max latitude)
+    ];
+
     map.current = new maplibregl.Map({
       container: mapContainer.current,
       style: {
@@ -133,6 +216,9 @@ export default function Map() {
       },
       center: [lng, lat],
       zoom: zoom,
+      maxBounds: legazpiBounds, // Restrict map to Legazpi City official boundary
+      minZoom: 11, // Prevent zooming out too far
+      maxZoom: 19, // Allow detailed zoom
     });
 
     map.current.addControl(new maplibregl.NavigationControl(), "bottom-right");
@@ -469,12 +555,17 @@ export default function Map() {
             }
           });
 
-          // Set all routes as active with car profile
-          const newActiveRoutes: Record<string, string> = {};
-          Object.keys(newRouteGeometries).forEach(key => {
-            newActiveRoutes[key] = 'car';
+          // Only set 'car' for NEW routes that don't already have a transport mode
+          setActiveRoutes(prev => {
+            const newActiveRoutes = { ...prev };
+            Object.keys(newRouteGeometries).forEach(key => {
+              // Only set to 'car' if this route doesn't exist yet
+              if (!newActiveRoutes[key]) {
+                newActiveRoutes[key] = 'car';
+              }
+            });
+            return newActiveRoutes;
           });
-          setActiveRoutes(newActiveRoutes);
         }
       } catch (error) {
         console.error('Error calculating routes:', error);
@@ -781,9 +872,117 @@ export default function Map() {
     setIsEditingDescription(false);
   };
 
-  const deleteAllItinerary = () => {
-    if (window.confirm("Are you sure you want to delete the entire itinerary? This cannot be undone.")) {
-      // Remove all route layers and sources from the map
+  const saveItinerary = async () => {
+    if (!user) {
+      alert('Please sign in to save itineraries');
+      return;
+    }
+
+    if (locations.length === 0) {
+      alert('Add some locations to your itinerary before saving');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      // Prepare itinerary data
+      const itineraryData = {
+        user_id: user.id,
+        name: itineraryTitle,
+        description: itineraryDescription !== "Add a description..." ? itineraryDescription : null,
+        date_from: itineraryDateFrom || null,
+        date_to: itineraryDateTo || null,
+        emoji: '🗺️',
+      };
+
+      let itineraryId = currentItineraryId;
+
+      if (currentItineraryId) {
+        // Update existing itinerary
+        const { error: updateError } = await supabase
+          .from('itineraries')
+          .update(itineraryData)
+          .eq('id', currentItineraryId);
+
+        if (updateError) throw updateError;
+
+        // Delete existing locations for this itinerary
+        await supabase
+          .from('itinerary_locations')
+          .delete()
+          .eq('itinerary_id', currentItineraryId);
+      } else {
+        // Create new itinerary
+        const { data: newItinerary, error: insertError } = await supabase
+          .from('itineraries')
+          .insert(itineraryData)
+          .select()
+          .single();
+
+        if (insertError) throw insertError;
+        itineraryId = newItinerary.id;
+        setCurrentItineraryId(itineraryId);
+      }
+
+      // Save locations
+      const locationData = locations.map((location, index) => ({
+        itinerary_id: itineraryId,
+        poi_id: location.poiID,
+        order_index: index,
+        date: location.date,
+        start_time: location.startTime,
+        end_time: location.endTime,
+        transport_mode: index < locations.length - 1 ? activeRoutes[`${location.id}-${locations[index + 1].id}`] || 'car' : null,
+      }));
+
+      const { error: locationsError } = await supabase
+        .from('itinerary_locations')
+        .insert(locationData);
+
+      if (locationsError) throw locationsError;
+
+      // Reload saved itineraries
+      const { data: updatedItineraries } = await supabase
+        .from('itineraries')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('updated_at', { ascending: false });
+
+      if (updatedItineraries) {
+        setSavedItineraries(updatedItineraries);
+      }
+
+      alert('Itinerary saved successfully!');
+      setIsMenuOpen(false);
+    } catch (error: any) {
+      console.error('Error saving itinerary:', error);
+      alert('Failed to save itinerary: ' + error.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const loadItinerary = async (itineraryId: string) => {
+    try {
+      // Load itinerary metadata
+      const { data: itinerary, error: itineraryError } = await supabase
+        .from('itineraries')
+        .select('*')
+        .eq('id', itineraryId)
+        .single();
+
+      if (itineraryError) throw itineraryError;
+
+      // Load itinerary locations
+      const { data: itineraryLocations, error: locationsError } = await supabase
+        .from('itinerary_locations')
+        .select('*')
+        .eq('itinerary_id', itineraryId)
+        .order('order_index');
+
+      if (locationsError) throw locationsError;
+
+      // Clear existing routes from map
       Object.keys(activeRoutes).forEach((locationPair) => {
         if (map.current?.getLayer(`route-${locationPair}`)) {
           map.current.removeLayer(`route-${locationPair}`);
@@ -796,16 +995,145 @@ export default function Map() {
         }
       });
 
-      setLocations([]);
-      setPendingLocation(null);
+      // Set itinerary metadata
+      setItineraryTitle(itinerary.name);
+      setItineraryDescription(itinerary.description || "Add a description...");
+      setItineraryDateFrom(itinerary.date_from || "");
+      setItineraryDateTo(itinerary.date_to || "");
+      setCurrentItineraryId(itineraryId);
+
+      // Convert locations
+      const loadedLocations: Location[] = [];
+      for (const loc of itineraryLocations) {
+        const poi = poiData.find(p => p.poiID === loc.poi_id);
+        if (poi) {
+          loadedLocations.push({
+            id: `${loc.id}`,
+            poiID: loc.poi_id,
+            name: poi.poiName,
+            category: poi.theme,
+            tags: [poi.theme],
+            date: loc.date,
+            startTime: loc.start_time,
+            endTime: loc.end_time,
+            coordinates: [poi.long, poi.lat],
+            confirmed: true,
+          });
+        }
+      }
+
+      setLocations(loadedLocations);
       setRouteInfos({});
       setRouteGeometries({});
       setActiveRoutes({});
-      setItineraryTitle("My Trip");
-      setItineraryDateFrom("");
-      setItineraryDateTo("");
-      setItineraryDescription("Add a description...");
       setIsMenuOpen(false);
+      setIsSidebarCollapsed(false); // Ensure sidebar is visible
+      setPendingLocation(null); // Clear any pending location
+
+      // Routes will be recalculated by the useEffect
+    } catch (error: any) {
+      console.error('Error loading itinerary:', error);
+      alert('Failed to load itinerary: ' + error.message);
+    }
+  };
+
+  const createNewItinerary = () => {
+    // Clear existing routes from map
+    Object.keys(activeRoutes).forEach((locationPair) => {
+      if (map.current?.getLayer(`route-${locationPair}`)) {
+        map.current.removeLayer(`route-${locationPair}`);
+      }
+      if (map.current?.getLayer(`route-${locationPair}-arrows`)) {
+        map.current.removeLayer(`route-${locationPair}-arrows`);
+      }
+      if (map.current?.getSource(`route-${locationPair}`)) {
+        map.current.removeSource(`route-${locationPair}`);
+      }
+    });
+
+    setLocations([]);
+    setPendingLocation(null);
+    setRouteInfos({});
+    setRouteGeometries({});
+    setActiveRoutes({});
+    setItineraryTitle("My Trip");
+    setItineraryDateFrom("");
+    setItineraryDateTo("");
+    setItineraryDescription("Add a description...");
+    setCurrentItineraryId(null);
+    setIsMenuOpen(false);
+  };
+
+  const deleteItinerary = async (itineraryId: string) => {
+    if (!window.confirm("Are you sure you want to delete this itinerary? This cannot be undone.")) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('itineraries')
+        .delete()
+        .eq('id', itineraryId);
+
+      if (error) throw error;
+
+      // Reload saved itineraries
+      const { data: updatedItineraries } = await supabase
+        .from('itineraries')
+        .select('*')
+        .eq('user_id', user!.id)
+        .order('updated_at', { ascending: false });
+
+      if (updatedItineraries) {
+        setSavedItineraries(updatedItineraries);
+      }
+
+      // If we deleted the current itinerary, create a new one
+      if (currentItineraryId === itineraryId) {
+        createNewItinerary();
+      }
+
+      setIsMenuOpen(false);
+    } catch (error: any) {
+      console.error('Error deleting itinerary:', error);
+      alert('Failed to delete itinerary: ' + error.message);
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await supabase.auth.signOut();
+      navigate('/');
+    } catch (error: any) {
+      console.error('Error signing out:', error);
+      alert('Failed to sign out: ' + error.message);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!user) return;
+    
+    const confirmed = window.confirm(
+      'Are you sure you want to delete your account? This action cannot be undone. All your data including itineraries will be permanently deleted.'
+    );
+    
+    if (!confirmed) return;
+    
+    try {
+      // Delete user from auth (cascade will handle profile and itineraries)
+      const { error } = await supabase.auth.admin.deleteUser(user.id);
+      
+      if (error) {
+        // If admin API not available, try RPC or direct deletion
+        const { error: rpcError } = await supabase.rpc('delete_user');
+        if (rpcError) throw rpcError;
+      }
+      
+      await supabase.auth.signOut();
+      navigate('/');
+    } catch (error: any) {
+      console.error('Error deleting account:', error);
+      alert('Failed to delete account. Please contact support.');
     }
   };
 
@@ -856,18 +1184,20 @@ export default function Map() {
       >
         {/* Logo */}
         <div className="absolute w-16 h-16 top-8 left-1/2 -translate-x-1/2 flex items-center justify-center">
-          <img
-            src={lakbaiIcon}
-            alt="Lakbai Logo"
-            className="w-full h-full"
-            style={{ filter: 'brightness(0) saturate(100%) invert(73%) sepia(31%) saturate(1679%) hue-rotate(50deg) brightness(95%) contrast(89%)' }}
-          />
+          <div className="w-full h-full flex items-center justify-center">
+            <img
+              src={lakbaiIcon}
+              alt="Lakbai Logo"
+              className="w-full h-full"
+              style={{ filter: 'brightness(0) saturate(100%) invert(73%) sepia(31%) saturate(1679%) hue-rotate(50deg) brightness(95%) contrast(89%)' }}
+            />
+          </div>
         </div>
 
         {/* Navigation */}
         <nav aria-label="Main navigation" className="absolute top-32 left-1/2 -translate-x-1/2 flex flex-col gap-4">
           <button
-            onClick={() => navigate("/")}
+            onClick={() => navigate("/home")}
             className="w-14 h-14 flex items-center justify-center bg-[#f0fbea] rounded-full cursor-pointer transition-all hover:bg-[#d9f5cc] hover:scale-110"
             aria-label="Home"
             type="button"
@@ -901,6 +1231,7 @@ export default function Map() {
         <div className="absolute bottom-0 left-0 w-full pb-8 flex flex-col items-center gap-4">
           {/* Settings Button */}
           <button
+            onClick={() => setIsSettingsOpen(true)}
             className="w-10 h-10 flex items-center justify-center cursor-pointer transition-all hover:scale-110 hover:bg-gray-200 rounded-full"
             aria-label="Settings"
             type="button"
@@ -916,12 +1247,13 @@ export default function Map() {
           {/* Version Badge */}
           <div className="bg-[#6dd14a] rounded-full px-4 py-1.5 flex items-center justify-center">
             <span className="font-medium text-black text-[10px] whitespace-nowrap">
-              version 1.2
+              v0.1.0
             </span>
           </div>
 
           {/* Profile Button */}
           <button
+            onClick={() => navigate('/home')}
             className="w-12 h-12 cursor-pointer transition-all hover:scale-110 hover:ring-2 hover:ring-lakbai-green rounded-full overflow-hidden"
             aria-label="User profile"
             type="button"
@@ -929,7 +1261,7 @@ export default function Map() {
             <img 
               className="w-full h-full object-cover rounded-full" 
               alt="User profile" 
-              src={profileIcon} 
+              src={userProfilePicture || profileIcon} 
             />
           </button>
         </div>
@@ -1017,23 +1349,62 @@ export default function Map() {
               </button>
               
               {isMenuOpen && (
-                <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden">
+                <div className="absolute right-0 mt-2 w-64 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden max-h-96 overflow-y-auto">
                   <button
-                    onClick={() => {
-                      // TODO: Save itinerary to user account when account integration is ready
-                      console.log('Save itinerary - Account integration pending');
-                      setIsMenuOpen(false);
-                    }}
-                    className="w-full text-left px-4 py-3 hover:bg-gray-50 text-sm text-gray-700 transition-colors"
+                    onClick={createNewItinerary}
+                    className="w-full text-left px-4 py-3 hover:bg-gray-50 text-sm text-gray-700 transition-colors font-medium border-b border-gray-100"
                   >
-                    Save
+                    + New Itinerary
                   </button>
-                  <button
-                    onClick={deleteAllItinerary}
-                    className="w-full text-left px-4 py-3 hover:bg-red-50 text-sm text-red-600 transition-colors border-t border-gray-100"
-                  >
-                    Delete All
-                  </button>
+                  
+                  {savedItineraries.length > 0 && (
+                    <>
+                      <div className="px-4 py-2 text-xs text-gray-500 font-semibold uppercase bg-gray-50">
+                        Saved Itineraries
+                      </div>
+                      {savedItineraries.map((itinerary) => (
+                        <div
+                          key={itinerary.id}
+                          className={`flex items-center justify-between px-4 py-3 hover:bg-gray-50 text-sm transition-colors border-b border-gray-100 ${
+                            currentItineraryId === itinerary.id ? 'bg-lakbai-green-bg' : ''
+                          }`}
+                        >
+                          <button
+                            onClick={() => loadItinerary(itinerary.id)}
+                            className="flex-1 text-left"
+                          >
+                            <div className="font-medium text-gray-900">{itinerary.name}</div>
+                            <div className="text-xs text-gray-500">
+                              {itinerary.date_from && new Date(itinerary.date_from + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                              {itinerary.date_from && itinerary.date_to && ' - '}
+                              {itinerary.date_to && new Date(itinerary.date_to + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                            </div>
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteItinerary(itinerary.id);
+                            }}
+                            className="ml-2 p-1 hover:bg-red-100 rounded text-red-600"
+                            title="Delete itinerary"
+                          >
+                            <svg className="w-4 h-4" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" stroke="currentColor">
+                              <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                            </svg>
+                          </button>
+                        </div>
+                      ))}
+                    </>
+                  )}
+                  
+                  {currentItineraryId && (
+                    <button
+                      onClick={() => deleteItinerary(currentItineraryId)}
+                      className="w-full text-left px-4 py-3 hover:bg-red-50 text-sm text-red-600 transition-colors border-t border-gray-200"
+                    >
+                      Delete Current Itinerary
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -1079,7 +1450,7 @@ export default function Map() {
                     className="flex-1 px-3 py-2 text-sm border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-lakbai-green focus:border-transparent hover:border-lakbai-green transition-colors"
                   />
                 </div>
-                {(itineraryDateFrom || itineraryDateTo) && (
+                {(itineraryDateFrom && itineraryDateTo) && (
                   <button
                     onClick={() => setIsEditingDates(false)}
                     className="text-xs text-lakbai-green hover:text-lakbai-green-dark font-medium"
@@ -1430,11 +1801,47 @@ export default function Map() {
 
         {/* Bottom Action */}
         <div className="px-8 py-6 border-t border-gray-200">
-          <button className="w-full bg-lakbai-green text-white py-4 rounded-xl font-semibold hover:bg-lakbai-green-dark transition-colors">
-            Generate Full Itinerary
+          <button 
+            onClick={saveItinerary}
+            disabled={isSaving || locations.length === 0}
+            className="w-full bg-lakbai-green text-white py-4 rounded-xl font-semibold hover:bg-lakbai-green-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isSaving ? 'Saving...' : currentItineraryId ? 'Update Itinerary' : 'Save Itinerary'}
           </button>
         </div>
       </div>
+
+      {/* Settings Modal */}
+      {isSettingsOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setIsSettingsOpen(false)}>
+          <div className="bg-white rounded-3xl p-8 max-w-md w-full mx-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">Settings</h2>
+            
+            <div className="space-y-4">
+              <button
+                onClick={handleSignOut}
+                className="w-full px-6 py-3 bg-gray-600 text-white rounded-xl font-semibold hover:bg-gray-700 transition-colors"
+              >
+                Sign Out
+              </button>
+              
+              <button
+                onClick={handleDeleteAccount}
+                className="w-full px-6 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors"
+              >
+                Delete Account
+              </button>
+              
+              <button
+                onClick={() => setIsSettingsOpen(false)}
+                className="w-full px-6 py-3 bg-gray-200 text-gray-900 rounded-xl font-semibold hover:bg-gray-300 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

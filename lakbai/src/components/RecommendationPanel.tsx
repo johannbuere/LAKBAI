@@ -34,11 +34,9 @@ export default function RecommendationPanel({
         <div className="flex items-center gap-2">
           <Sparkles className="w-5 h-5" />
           <h3 className="font-semibold">AI Recommendations</h3>
-          {!isCollapsed && (
-            <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full">
-              {recommendations.length} suggestions
-            </span>
-          )}
+          <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full">
+            {recommendations.length} suggestions
+          </span>
         </div>
         <div className="flex items-center gap-2">
           {isCollapsed ? (

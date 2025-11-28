@@ -153,4 +153,6 @@ if __name__ == '__main__':
     print("🏥 Health check: http://localhost:5002/api/recommendations/health")
     print("=" * 60)
     
-    app.run(host='0.0.0.0', port=5002, debug=True)
+    # Disable debug mode to prevent auto-reloader issues with venv_bert
+    # The auto-reloader was detecting PyTorch module loads as file changes
+    app.run(host='0.0.0.0', port=5002, debug=False)

@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "LAKBAI",
+    "slug": "lakbai-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#6dd14a"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.lakbai.mobile"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#6dd14a"
+      },
+      "package": "com.lakbai.mobile",
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}
